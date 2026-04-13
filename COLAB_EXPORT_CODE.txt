@@ -1,0 +1,83 @@
+# COPY-PASTE THIS INTO YOUR COLAB NOTEBOOK (at the end)
+
+# ========== CELL: Export Model to Joblib ==========
+
+import joblib
+import os
+
+print("="*70)
+print("EXPORTING TRAINED MODEL")
+print("="*70)
+
+# Define filenames
+model_filename = 'sepsis_xgb_model_v1.joblib'
+features_filename = 'model_features.joblib'
+
+# Get feature names from your training data
+# (Make sure X_train_advanced is defined from your training)
+feature_names = X_train_advanced.columns.tolist()
+
+print(f"\n[Step 1] Saving model...")
+print(f"Model object: model_ada")
+print(f"Filename: {model_filename}")
+
+# Save the trained XGBoost model
+joblib.dump(model_ada, model_filename)
+print(f"[OK] Model saved: {model_filename} ({os.path.getsize(model_filename) / 1024:.1f} KB)")
+
+print(f"\n[Step 2] Saving feature list...")
+print(f"Features: {len(feature_names)} variables")
+print(f"Filename: {features_filename}")
+
+# Save the feature names list
+joblib.dump(feature_names, features_filename)
+print(f"[OK] Features saved: {features_filename}")
+
+# Show what features are included
+print(f"\n[Step 3] Features in your model:")
+print("-" * 70)
+for i, feat in enumerate(feature_names, 1):
+    print(f"{i:2d}. {feat}")
+
+print("\n" + "="*70)
+print("READY TO DOWNLOAD")
+print("="*70)
+
+# Download to your computer
+print("\nFiles ready for download:")
+print(f"  1. {model_filename} - Your trained XGBoost model")
+print(f"  2. {features_filename} - Feature list")
+
+# Trigger download
+from google.colab import files
+
+print("\n[Downloading model...]")
+files.download(model_filename)
+
+print("[Downloading features...]")
+files.download(features_filename)
+
+print("\n[OK] DOWNLOAD COMPLETE!")
+print("\n" + "="*70)
+print("NEXT STEPS:")
+print("="*70)
+print("""
+1. Check your Downloads folder for:
+   - sepsis_xgb_model_v1.joblib
+   - model_features.joblib
+
+2. Move both files to:
+   c:/Users/aruna/OneDrive/Desktop/ML - Sepsis/
+
+3. Restart the Flask web app:
+   cd "c:/Users/aruna/OneDrive/Desktop/ML - Sepsis"
+   python run.py
+
+4. Verify it's loaded:
+   python verify_model.py
+
+Your trained model will now power the web app!
+""")
+print("="*70)
+
+# ========== END OF CELL ==========

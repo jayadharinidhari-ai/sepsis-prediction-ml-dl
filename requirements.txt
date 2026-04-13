@@ -1,0 +1,8 @@
+Flask==3.0.3
+pandas
+numpy
+scikit-learn
+xgboost
+joblib
+twilio
+python-dotenv

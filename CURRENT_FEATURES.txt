@@ -1,0 +1,96 @@
+═══════════════════════════════════════════════════════════════════════════════
+  QUICK REFERENCE - UPDATED FEATURES
+═══════════════════════════════════════════════════════════════════════════════
+
+WHAT'S NEW IN THIS ITERATION:
+─────────────────────────────
+
+1. REAL-TIME RISK UPDATES ✅
+   • Risk score now changes every 5 seconds
+   • Displays actual fluctuations (85-95% for Rajesh)
+   • Dashboard refreshes every 2 seconds
+   • Example: 88.6% → 87.7% → 86.7% → 86%
+
+
+2. PATIENT RISK LEVEL SELECTION ✅
+   When admitting a new patient, select risk level:
+   
+   [+ Admit Patient] → Fill form → Select "Initial Risk Level":
+   
+   Option 1: Low Risk (8%)
+      • Normal vitals: HR 76, Temp 37°C, MAP 82
+      • Normal labs: WBC 8, Lactate 0.8
+      
+   Option 2: Moderate Risk (50%)
+      • Elevated vitals: HR 96, Temp 37.8°C, MAP 76
+      • Borderline labs: WBC 12.1, Lactate 1.6
+      
+   Option 3: High Risk (87%)
+      • Critical vitals: HR 118, Temp 38.9°C, MAP 58
+      • Dangerous labs: WBC 18.4, Lactate 3.2
+      
+   Option 4: Critical Risk (95%)
+      • Severe vitals: HR 135, Temp 40.2°C, MAP 52
+      • Critical labs: WBC 22, Lactate 4.5
+
+
+3. TWILIO SMS ALERTS 📱
+   
+   How It Works:
+   • When patient risk ≥ 75%, automatic alert triggered
+   • Alert sent every 5 minutes while HIGH risk
+   • SMS format: "🚨 SEPSIS ALERT: Name - Risk X% | Ward: ICU-X"
+   
+   Current Status:
+   • Alerts are LOGGED in dashboard
+   • SMS not yet sent (Twilio not configured)
+   
+   To Send Real SMS to 7339300849:
+   1. Get Twilio account (free trial available)
+   2. Set 3 environment variables:
+      - TWILIO_ACCOUNT_SID
+      - TWILIO_AUTH_TOKEN
+      - TWILIO_PHONE_NUMBER
+   3. Restart Flask: python run.py
+   4. SMS will auto-send to doctor phone
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+SYSTEM STATUS:
+──────────────
+Server: http://localhost:5000/dashboard
+Status: ✅ RUNNING
+Patients: 3 (Rajesh, Meena, Anbu)
+
+Patient Risk Updates:
+  Rajesh:  84-90% (high, varies)
+  Meena:   41-88% (progresses to high)
+  Anbu:    8% (stable low)
+
+
+KEY FILES:
+──────────
+Code Changes:
+  • app/templates/dashboard.html (polling, admit form, SMS)
+  • app/services/simulator.py (risk variation)
+  • app/services/sepsis_engine.py (Twilio SMS)
+
+Documentation:
+  • ITERATION_CHANGELOG.txt (detailed changes)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+WHAT TO TEST:
+──────────────
+1. Open dashboard → Select different patients
+2. Watch risk score change in real-time (every ~5 seconds)
+3. Click "+ Admit Patient" → Select different risk levels
+4. New patients should have vitals matching selected risk
+5. High-risk patients trigger alerts every 5 minutes
+
+
+═══════════════════════════════════════════════════════════════════════════════
+Ready for next iteration. No README updates until all cycles complete.
+═══════════════════════════════════════════════════════════════════════════════

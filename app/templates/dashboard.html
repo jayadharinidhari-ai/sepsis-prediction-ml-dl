@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICU Monitor - Sepsis Early Warning Dashboard</title>
+    <style>
+        :root {
+            --color-background-primary: #ffffff;
+            --color-background-secondary: #f7f7f7;
+            --color-background-tertiary: #f0f0f0;
+            --color-text-primary: #1a1a1a;
+            --color-text-secondary: #666;
+            --color-text-tertiary: #999;
+            --color-border-primary: #e0e0e0;
+            --color-border-secondary: #d0d0d0;
+            --color-border-tertiary: #e8e8e8;
+            --border-radius-md: 6px;
+            --border-radius-lg: 8px;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-sans); font-size: 14px; color: var(--color-text-primary); }
+        .app { display: flex; height: 100vh; min-height: 600px; background: var(--color-background-tertiary); }
+        .sidebar { width: 220px; min-width: 220px; background: var(--color-background-primary); border-right: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; overflow-y: auto; }
+        .main { flex: 1; overflow-y: auto; padding: 16px; }
+        .logo { padding: 16px; border-bottom: 0.5px solid var(--color-border-tertiary); font-weight: 500; font-size: 15px; color: var(--color-text-primary); }
+        .logo span { color: #378ADD; font-size: 11px; display: block; font-weight: 400; margin-top: 2px; }
+        .pt-list { padding: 8px; }
+        .pt-item { padding: 10px 10px; border-radius: var(--border-radius-md); cursor: pointer; border: 0.5px solid transparent; margin-bottom: 4px; transition: background 0.15s; }
+        .pt-item:hover { background: var(--color-background-secondary); }
+        .pt-item.active { background: var(--color-background-secondary); border-color: var(--color-border-secondary); }
+        .pt-name { font-weight: 500; font-size: 13px; }
+        .pt-meta { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+        .badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 500; margin-top: 4px; }
+        .badge-danger { background: #FCEBEB; color: #A32D2D; }
+        .badge-warning { background: #FAEEDA; color: #854F0B; }
+        .badge-ok { background: #EAF3DE; color: #3B6D11; }
+        .badge-info { background: #E6F1FB; color: #185FA5; }
+        .admit-btn { margin: 8px; padding: 8px; border-radius: var(--border-radius-md); background: #E6F1FB; color: #185FA5; border: 0.5px solid #B5D4F4; font-size: 12px; cursor: pointer; font-weight: 500; text-align: center; }
+        .admit-btn:hover { background: #B5D4F4; }
+        .hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .hdr-left h2 { font-size: 18px; font-weight: 500; }
+        .hdr-left p { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+        .action-btns { display: flex; gap: 8px; }
+        .btn { padding: 7px 14px; border-radius: var(--border-radius-md); font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--color-border-secondary); }
+        .btn-red { background: #FCEBEB; color: #A32D2D; border-color: #F7C1C1; }
+        .btn-red:hover { background: #F7C1C1; }
+        .btn-green { background: #EAF3DE; color: #3B6D11; border-color: #C0DD97; }
+        .btn-green:hover { background: #C0DD97; }
+        .btn-blue { background: #E6F1FB; color: #185FA5; border-color: #B5D4F4; }
+        .btn-blue:hover { background: #B5D4F4; }
+        .btn-gray { background: var(--color-background-secondary); color: var(--color-text-secondary); border-color: var(--color-border-tertiary); }
+        .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+        .metric-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 12px 14px; }
+        .metric-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; }
+        .metric-val { font-size: 22px; font-weight: 500; }
+        .metric-val.danger { color: #A32D2D; }
+        .metric-val.warning { color: #854F0B; }
+        .metric-val.ok { color: #3B6D11; }
+        .metric-sub { font-size: 10px; color: var(--color-text-tertiary); margin-top: 2px; }
+        .row2 { display: grid; grid-template-columns: 1fr 340px; gap: 12px; margin-bottom: 12px; }
+        .card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px; }
+        .card-title { font-size: 13px; font-weight: 500; margin-bottom: 10px; color: var(--color-text-primary); }
+        .risk-meter { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+        .risk-bar-wrap { flex: 1; height: 12px; background: var(--color-background-secondary); border-radius: 6px; overflow: hidden; }
+        .risk-bar { height: 100%; border-radius: 6px; transition: width 0.4s; }
+        .risk-pct { font-size: 20px; font-weight: 500; min-width: 52px; text-align: right; }
+        .alert-box { background: #FCEBEB; border: 0.5px solid #F7C1C1; border-radius: var(--border-radius-md); padding: 10px 12px; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 10px; }
+        .alert-icon { width: 18px; height: 18px; background: #E24B4A; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+        .alert-icon::after { content: ''; display: block; width: 2px; height: 7px; background: #fff; border-radius: 1px; }
+        .alert-title { font-size: 12px; font-weight: 500; color: #A32D2D; }
+        .alert-msg { font-size: 11px; color: #A32D2D; margin-top: 2px; }
+        .sms-sent { font-size: 10px; color: #3B6D11; background: #EAF3DE; border-radius: 4px; padding: 2px 6px; margin-top: 4px; display: inline-block; }
+        .feat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .feat-name { font-size: 12px; width: 110px; flex-shrink: 0; color: var(--color-text-secondary); }
+        .feat-bar-wrap { flex: 1; height: 8px; background: var(--color-background-secondary); border-radius: 4px; overflow: hidden; }
+        .feat-bar { height: 100%; border-radius: 4px; }
+        .feat-val { font-size: 11px; min-width: 44px; text-align: right; color: var(--color-text-primary); }
+        .vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .vital-item { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; }
+        .vital-lbl { font-size: 10px; color: var(--color-text-secondary); }
+        .vital-num { font-size: 16px; font-weight: 500; margin-top: 1px; }
+        .vital-num.abn { color: #A32D2D; }
+        .vital-num.warn { color: #854F0B; }
+        .row3 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        .chart-wrap { position: relative; height: 180px; width: 100%; }
+        .tabs { display: flex; gap: 2px; margin-bottom: 10px; }
+        .tab { padding: 4px 10px; border-radius: var(--border-radius-md); font-size: 11px; cursor: pointer; background: transparent; border: 0.5px solid transparent; color: var(--color-text-secondary); }
+        .tab.active { background: var(--color-background-secondary); border-color: var(--color-border-tertiary); color: var(--color-text-primary); font-weight: 500; }
+        .discharge-modal { position: absolute; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal-box { background: var(--color-background-primary); border-radius: var(--border-radius-lg); padding: 20px; width: 320px; border: 0.5px solid var(--color-border-secondary); }
+        .modal-title { font-size: 15px; font-weight: 500; margin-bottom: 8px; }
+        .modal-msg { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 16px; }
+        .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+        .admit-form { position: absolute; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .form-box { background: var(--color-background-primary); border-radius: var(--border-radius-lg); padding: 20px; width: 340px; border: 0.5px solid var(--color-border-secondary); }
+        .form-box label { font-size: 12px; color: var(--color-text-secondary); display: block; margin-bottom: 3px; margin-top: 10px; }
+        .form-box input, .form-box select { width: 100%; padding: 6px 8px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-primary); font-size: 13px; }
+        .sms-log { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; font-size: 11px; color: var(--color-text-secondary); max-height: 80px; overflow-y: auto; }
+        .sms-entry { padding: 3px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+        .sms-entry:last-child { border: none; }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--color-text-secondary); font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="app" id="app">
+        <div class="sidebar">
+            <div class="logo">ICU Monitor <span>Sepsis Early Warning</span></div>
+            <div id="pt-list" class="pt-list"></div>
+            <div class="admit-btn" id="admitBtn">+ Admit Patient</div>
+        </div>
+        <div class="main" id="main-content"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script>
+
+// ===== AUDIO ALERT SYSTEM =====
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+function playBuzzerAlert() {
+ const now = audioContext.currentTime;
+ const osc = audioContext.createOscillator();
+ const gain = audioContext.createGain();
+ 
+ osc.connect(gain);
+ gain.connect(audioContext.destination);
+ 
+ osc.frequency.value = 800;
+ osc.type = 'sine';
+ 
+ gain.gain.setValueAtTime(0.3, now);
+ gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+ 
+ osc.start(now);
+ osc.stop(now + 0.5);
+}
+
+function playHighRiskAlert() {
+ // Double beep for high risk
+ for (let i = 0; i < 2; i++) {
+  setTimeout(() => playBuzzerAlert(), i * 200);
+ }
+}
+
+// ===== REAL-TIME UPDATE SYSTEM =====
+let updateInterval = null;
+let lastAlertStatus = {};
+
+async function fetchLivePatientData(patientId) {
+ try {
+  const response = await fetch(`/api/patient/${patientId}`);
+  if (!response.ok) return null;
+  return await response.json();
+ } catch (e) {
+  console.error('Fetch error:', e);
+  return null;
+ }
+}
+
+function startRealTimeUpdates() {
+ if (updateInterval) clearInterval(updateInterval);
+
+ updateInterval = setInterval(async () => {
+  // Don't re-render if a form is open (admit or discharge modal)
+  if (showAdmit || showDischarge) return;
+
+  // Fetch updated patient data
+  const updated = await fetchLivePatientData(selectedId);
+  if (!updated) return;
+
+  // Update local patient object
+  const localPatient = patients.find(p => p.id === selectedId);
+  if (localPatient) {
+   const oldRisk = localPatient.sepsisRisk;
+
+   // Deep update to ensure all nested objects update
+   Object.assign(localPatient, updated);
+
+   // Check for risk level change AFTER updating
+   if (updated.sepsisRisk >= 0.75) {
+    if (!lastAlertStatus[selectedId]) {
+     lastAlertStatus[selectedId] = true;
+     playHighRiskAlert();
+    }
+   } else {
+    lastAlertStatus[selectedId] = false;
+   }
+  }
+
+  // Force dashboard render with updated data
+  renderSidebar();
+  renderMain();
+ }, 2000); // Update every 2 seconds for faster refresh
+}
+
+function stopRealTimeUpdates() {
+ if (updateInterval) {
+  clearInterval(updateInterval);
+  updateInterval = null;
+ }
+}
+const PATIENTS = [
+ {
+  id:1, name:"Rajesh Kumar", age:67, gender:"M", ward:"ICU-A2", doctor:"Dr. Priya Nair",
+  doctorPhone:"+91-7339300849", admitted:"2026-04-07", status:"admitted",
+  sepsisRisk:0.87, riskLevel:"High",
+  vitals:{HR:118,Temp:38.9,SBP:88,MAP:58,DBP:52,Resp:26,O2Sat:91,EtCO2:32},
+  labs:{WBC:18.4,Creatinine:2.1,Platelets:88,Lactate:3.2,Bilirubin:2.8,FiO2:0.4,pH:7.28,PaCO2:32,BaseExcess:-6,HCO3:18,PTT:48,BUN:38,Chloride:98,Potassium:3.2,Sodium:136,Hgb:9.2,Glucose:162},
+  age_data:67, ICULOS:18,
+  topFeatures:[
+   {name:"Lactate",val:3.2,max:5,contrib:0.92,dir:"high"},
+   {name:"MAP",val:58,max:100,contrib:0.87,dir:"low"},
+   {name:"WBC",val:18.4,max:25,contrib:0.81,dir:"high"},
+   {name:"Temperature",val:38.9,max:41,contrib:0.74,dir:"high"},
+   {name:"Creatinine",val:2.1,max:5,contrib:0.68,dir:"high"},
+   {name:"Resp Rate",val:26,max:40,contrib:0.61,dir:"high"},
+   {name:"Platelets",val:88,max:400,contrib:0.55,dir:"low"},
+  ],
+  trend:{
+   HR:[98,102,107,110,112,115,116,118],
+   Temp:[37.2,37.6,37.9,38.2,38.5,38.7,38.8,38.9],
+   MAP:[78,74,70,68,65,62,60,58],
+   WBC:[11.2,12.4,13.8,15.1,16.2,17.1,17.8,18.4],
+  },
+  alerts:[
+   {time:"06:42",msg:"Sepsis probability exceeded 85% threshold. Immediate review required."},
+   {time:"05:15",msg:"MAP dropped below 65 mmHg — possible septic shock."},
+  ]
+ },
+ {
+  id:2, name:"Meena Subramaniam", age:54, gender:"F", ward:"ICU-B1", doctor:"Dr. Arvind Rao",
+  doctorPhone:"+91-99887-76655", admitted:"2026-04-08", status:"admitted",
+  sepsisRisk:0.41, riskLevel:"Moderate",
+  vitals:{HR:96,Temp:37.8,SBP:112,MAP:76,DBP:68,Resp:19,O2Sat:96,EtCO2:38},
+  labs:{WBC:12.1,Creatinine:1.1,Platelets:185,Lactate:1.6,Bilirubin:1.2,FiO2:0.3,pH:7.36,PaCO2:38,BaseExcess:-1,HCO3:22,PTT:32,BUN:22,Chloride:102,Potassium:3.9,Sodium:139,Hgb:11.4,Glucose:128},
+  ICULOS:6,
+  topFeatures:[
+   {name:"WBC",val:12.1,max:25,contrib:0.44,dir:"high"},
+   {name:"Temperature",val:37.8,max:41,contrib:0.38,dir:"high"},
+   {name:"HR",val:96,max:150,contrib:0.32,dir:"high"},
+   {name:"Lactate",val:1.6,max:5,contrib:0.28,dir:"mod"},
+  ],
+  trend:{
+   HR:[88,90,91,93,94,95,95,96],
+   Temp:[37.1,37.2,37.4,37.5,37.6,37.7,37.7,37.8],
+   MAP:[82,80,79,78,78,77,76,76],
+   WBC:[9.8,10.2,10.8,11.1,11.4,11.8,12.0,12.1],
+  },
+  alerts:[]
+ },
+ {
+  id:3, name:"Anbu Selvam", age:72, gender:"M", ward:"ICU-A1", doctor:"Dr. Priya Nair",
+  doctorPhone:"+91-7339300849", admitted:"2026-04-06", status:"admitted",
+  sepsisRisk:0.12, riskLevel:"Low",
+  vitals:{HR:78,Temp:37.0,SBP:132,MAP:90,DBP:78,Resp:16,O2Sat:98,EtCO2:40},
+  labs:{WBC:8.4,Creatinine:0.9,Platelets:242,Lactate:0.9,Bilirubin:0.8,FiO2:0.21,pH:7.42,PaCO2:40,BaseExcess:1,HCO3:25,PTT:28,BUN:14,Chloride:105,Potassium:4.1,Sodium:141,Hgb:13.2,Glucose:102},
+  ICULOS:30,
+  topFeatures:[
+   {name:"Age",val:72,max:100,contrib:0.18,dir:"high"},
+   {name:"ICULOS",val:30,max:72,contrib:0.14,dir:"high"},
+  ],
+  trend:{
+   HR:[80,79,78,79,78,78,78,78],
+   Temp:[37.0,37.0,37.1,37.0,37.0,37.0,37.0,37.0],
+   MAP:[92,91,90,91,90,90,91,90],
+   WBC:[8.2,8.3,8.4,8.3,8.4,8.4,8.4,8.4],
+  },
+  alerts:[]
+ }
+];
+
+let patients = JSON.parse(JSON.stringify(PATIENTS));
+let selectedId = 1;
+let showDischarge = false;
+let showAdmit = false;
+let smsLog = [];
+let charts = {};
+let alertsSent = {};
+let chartTab = "HR";
+
+function riskColor(r){
+ if(r>=0.75) return "#E24B4A";
+ if(r>=0.4) return "#EF9F27";
+ return "#639922";
+}
+function riskTextClass(r){
+ if(r>=0.75) return "danger";
+ if(r>=0.4) return "warning";
+ return "ok";
+}
+function badgeClass(r){
+ if(r>=0.75) return "badge-danger";
+ if(r>=0.4) return "badge-warning";
+ return "badge-ok";
+}
+function riskLabel(r){
+ if(r>=0.75) return "High Risk";
+ if(r>=0.4) return "Moderate";
+ return "Low Risk";
+}
+
+function sendSMS(patient){
+ const t = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+ const msg = `[${t}] ALERT — ${patient.name} (${patient.ward}): Sepsis risk ${Math.round(patient.sepsisRisk*100)}%. Doctor: ${patient.doctor} notified.`;
+ smsLog.unshift({time:t,msg,doctor:patient.doctor,phone:patient.doctorPhone,patient:patient.name});
+ 
+ // Send actual SMS via backend API
+ fetch(`/api/patient/${patient.id}/alert`, {method:'POST'})
+  .then(r=>r.json())
+  .then(data=>{
+   if(data.success) {
+    console.log(`✓ SMS sent to ${patient.doctor} (${patient.doctorPhone})`);
+   }
+  })
+  .catch(e=>console.error('SMS error:', e));
+}
+
+function autoAlert(){
+ patients.forEach(p=>{
+  if(p.sepsisRisk>=0.75 && p.status==='admitted' && !alertsSent[p.id]){
+   alertsSent[p.id] = true;
+   sendSMS(p);
+  }
+ });
+}
+
+function renderSidebar(){
+ const list = document.getElementById('pt-list');
+ if(!list) return;
+ list.innerHTML = patients.filter(p=>p.status==='admitted').map(p=>`
+  <div class="pt-item ${p.id===selectedId?'active':''}" onclick="selectPt(${p.id})">
+   <div class="pt-name">${p.name}</div>
+   <div class="pt-meta">${p.gender}, ${p.age}y &bull; ${p.ward}</div>
+   <span class="badge ${badgeClass(p.sepsisRisk)}">${riskLabel(p.sepsisRisk)}</span>
+  </div>
+ `).join('')||'<div style="padding:12px;font-size:12px;color:var(--color-text-secondary)">No admitted patients</div>';
+}
+
+function getTimeLabels(){
+ const now = new Date();
+ return Array.from({length:8},(_,i)=>{
+  const d = new Date(now - (7-i)*60*60*1000);
+  return d.getHours()+':00';
+ });
+}
+
+function destroyCharts(){
+ Object.values(charts).forEach(c=>{try{c.destroy()}catch(e){}});
+ charts={};
+}
+
+function initCharts(p){
+ destroyCharts();
+ const labels = getTimeLabels();
+ const tabs = ['HR','Temp','MAP','WBC'];
+ const cfg = {
+  HR:{label:'Heart Rate (bpm)',color:'#E24B4A',ref:[60,100],unit:'bpm'},
+  Temp:{label:'Temperature (°C)',color:'#EF9F27',ref:[36.1,37.5],unit:'°C'},
+  MAP:{label:'Mean Arterial Pressure',color:'#378ADD',ref:[70,100],unit:'mmHg'},
+  WBC:{label:'WBC Count (×10³/μL)',color:'#639922',ref:[4,11],unit:'k/μL'},
+ };
+ const tab = chartTab;
+ const c = cfg[tab];
+ const canvas = document.getElementById('trend-chart');
+ if(!canvas) return;
+ charts['trend'] = new Chart(canvas,{
+  type:'line',
+  data:{
+   labels,
+   datasets:[{
+    label:c.label,
+    data:p.trend[tab],
+    borderColor:c.color,
+    backgroundColor:c.color+'22',
+    fill:true,
+    tension:0.35,
+    pointRadius:3,
+    pointBackgroundColor:c.color,
+    borderWidth:2
+   }]
+  },
+  options:{
+   responsive:true,maintainAspectRatio:false,
+   plugins:{legend:{display:false}},
+   scales:{
+    x:{ticks:{color:'#888',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}},
+    y:{ticks:{color:'#888',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'},
+     title:{display:true,text:c.unit,color:'#888',font:{size:10}}
+    }
+   },
+   animation:{duration:300}
+  }
+ });
+
+ const rCanvas = document.getElementById('risk-trend-chart');
+ if(!rCanvas) return;
+ const riskTrend = [0.18,0.24,0.31,0.45,0.56,0.69,0.79,p.sepsisRisk];
+ charts['risk'] = new Chart(rCanvas,{
+  type:'line',
+  data:{
+   labels,
+   datasets:[{
+    label:'Sepsis Risk',
+    data:riskTrend.map(v=>+(v*100).toFixed(1)),
+    borderColor:'#E24B4A',
+    backgroundColor:'rgba(226,75,74,0.08)',
+    fill:true,tension:0.4,pointRadius:3,
+    pointBackgroundColor:riskTrend.map(v=>v>=0.75?'#E24B4A':v>=0.4?'#EF9F27':'#639922'),
+    borderWidth:2
+   }]
+  },
+  options:{
+   responsive:true,maintainAspectRatio:false,
+   plugins:{legend:{display:false}},
+   scales:{
+    x:{ticks:{color:'#888',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}},
+    y:{min:0,max:100,ticks:{color:'#888',font:{size:10},callback:v=>v+'%'},grid:{color:'rgba(128,128,128,0.1)'}}
+   },
+   animation:{duration:300}
+  }
+ });
+}
+
+function vClass(key,val){
+ const danger={HR:[v=>v>130||v<40],Temp:[v=>v>38.5||v<36],MAP:[v=>v<65],O2Sat:[v=>v<92],Resp:[v=>v>25],WBC:[v=>v>15]};
+ const warn={HR:[v=>v>100||v<55],Temp:[v=>v>37.8],MAP:[v=>v<70],O2Sat:[v=>v<95],Resp:[v=>v>20],WBC:[v=>v>12]};
+ if(danger[key]&&danger[key][0](val)) return 'abn';
+ if(warn[key]&&warn[key][0](val)) return 'warn';
+ return '';
+}
+
+function featBarColor(d){
+ if(d==='high') return '#E24B4A';
+ if(d==='low') return '#378ADD';
+ return '#EF9F27';
+}
+
+function renderMain(){
+ const mc = document.getElementById('main-content');
+ if(!mc) return;
+ const admitted = patients.filter(p=>p.status==='admitted');
+ if(!admitted.length){
+  mc.innerHTML=`<div class="empty-state"><div style="font-size:32px;margin-bottom:12px">🏥</div><div style="font-size:15px;font-weight:500;margin-bottom:6px">No admitted patients</div><div>Use "+ Admit Patient" to add a new patient.</div></div>`;
+  return;
+ }
+ const p = patients.find(x=>x.id===selectedId&&x.status==='admitted') || admitted[0];
+ if(!p){mc.innerHTML='';return;}
+ selectedId=p.id;
+
+ const rPct = Math.round(p.sepsisRisk*100);
+ const rCol = riskColor(p.sepsisRisk);
+ const rTc = riskTextClass(p.sepsisRisk);
+
+ const alertsHTML = p.alerts.length ? p.alerts.map(a=>`
+  <div class="alert-box">
+   <div class="alert-icon"></div>
+   <div>
+    <div class="alert-title">Sepsis Alert — ${a.time}</div>
+    <div class="alert-msg">${a.msg}</div>
+    ${alertsSent[p.id]?`<div class="sms-sent">SMS sent to ${p.doctor} (${p.doctorPhone})</div>`:''}
+   </div>
+  </div>
+ `).join('') : `<div style="font-size:12px;color:var(--color-text-secondary);padding:4px 0">No active alerts</div>`;
+
+ const featHTML = p.topFeatures.map(f=>`
+  <div class="feat-row">
+   <div class="feat-name">${f.name}</div>
+   <div class="feat-bar-wrap"><div class="feat-bar" style="width:${Math.round(f.contrib*100)}%;background:${featBarColor(f.dir)}"></div></div>
+   <div class="feat-val" style="color:${featBarColor(f.dir)}">${f.val} <span style="font-size:9px;color:var(--color-text-tertiary)">(${f.dir})</span></div>
+  </div>
+ `).join('');
+
+ const tabs = ['HR','Temp','MAP','WBC'];
+ const tabsHTML = tabs.map(t=>`<div class="tab ${chartTab===t?'active':''}" onclick="setChartTab('${t}',${p.id})">${t}</div>`).join('');
+
+ const smsHTML = smsLog.length ? smsLog.slice(0,4).map(s=>`
+  <div class="sms-entry"><b style="color:var(--color-text-primary)">${s.time}</b> — ${s.patient}: ${s.doctor} alerted via ${s.phone}</div>
+ `).join('') : '<div style="font-size:11px;color:var(--color-text-secondary)">No messages sent yet.</div>';
+
+ mc.innerHTML = `
+  <div style="position:relative">
+  ${showDischarge?`<div class="discharge-modal"><div class="modal-box">
+   <div class="modal-title">Discharge Patient</div>
+   <div class="modal-msg">Are you sure you want to discharge <b>${p.name}</b>? This will remove them from the active patient list.</div>
+   <div class="modal-btns">
+    <button class="btn btn-gray" onclick="cancelDischarge()">Cancel</button>
+    <button class="btn btn-red" onclick="confirmDischarge(${p.id})">Discharge</button>
+   </div>
+  </div></div>`:''}
+  ${showAdmit?`<div class="admit-form"><div class="form-box">
+   <div class="modal-title">Admit New Patient</div>
+   <label>Patient Name</label><input id="f-name" placeholder="Full name">
+   <label>Age</label><input id="f-age" type="number" placeholder="Age">
+   <label>Gender</label><select id="f-gender"><option>M</option><option>F</option></select>
+   <label>Ward</label><input id="f-ward" placeholder="e.g. ICU-A3">
+   <label>Doctor In-Charge</label><input id="f-doc" placeholder="Doctor name">
+   <label>Doctor Phone</label><input id="f-phone" placeholder="+91-...">
+    <label>Initial Risk Level</label><select id="f-risk-level">
+     <option value="low">Low Risk (8%)</option>
+     <option value="moderate">Moderate Risk (50%)</option>
+     <option value="high">High Risk (87%)</option>
+     <option value="critical">Critical Risk (95%)</option>
+    </select>
+   <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+    <button class="btn btn-gray" onclick="cancelAdmit()">Cancel</button>
+    <button class="btn btn-green" onclick="confirmAdmit()">Admit</button>
+   </div>
+  </div></div>`:''}
+
+  <div class="hdr">
+   <div class="hdr-left">
+    <h2>${p.name}</h2>
+    <p>${p.gender}, ${p.age}y &bull; ${p.ward} &bull; Admitted: ${p.admitted} &bull; ICU-LOS: ${p.ICULOS}h &bull; Doctor: ${p.doctor}</p>
+   </div>
+   <div class="action-btns">
+    <button class="btn btn-blue" onclick="sendManualAlert(${p.id})">Send Alert</button>
+    <button class="btn btn-red" onclick="startDischarge()">Discharge</button>
+   </div>
+  </div>
+
+  <div class="metrics">
+   <div class="metric-card">
+    <div class="metric-label">Heart Rate</div>
+    <div class="metric-val ${vClass('HR',p.vitals.HR)}">${p.vitals.HR} <span style="font-size:12px;font-weight:400">bpm</span></div>
+    <div class="metric-sub">Normal: 60–100</div>
+   </div>
+   <div class="metric-card">
+    <div class="metric-label">Temperature</div>
+    <div class="metric-val ${vClass('Temp',p.vitals.Temp)}">${p.vitals.Temp}°C</div>
+    <div class="metric-sub">Normal: 36.1–37.5</div>
+   </div>
+   <div class="metric-card">
+    <div class="metric-label">MAP</div>
+    <div class="metric-val ${vClass('MAP',p.vitals.MAP)}">${p.vitals.MAP} <span style="font-size:12px;font-weight:400">mmHg</span></div>
+    <div class="metric-sub">Normal: ≥65</div>
+   </div>
+   <div class="metric-card">
+    <div class="metric-label">O₂ Saturation</div>
+    <div class="metric-val ${vClass('O2Sat',p.vitals.O2Sat)}">${p.vitals.O2Sat}%</div>
+    <div class="metric-sub">Normal: ≥95%</div>
+   </div>
+  </div>
+
+  <div class="row2">
+   <div>
+    <div class="card" style="margin-bottom:12px">
+     <div class="card-title">Sepsis Risk Score</div>
+     <div class="risk-meter">
+      <div class="risk-bar-wrap"><div class="risk-bar" style="width:${rPct}%;background:${rCol}"></div></div>
+      <div class="risk-pct ${rTc}">${rPct}%</div>
+     </div>
+     <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">Risk Level: <b style="color:${rCol}">${riskLabel(p.sepsisRisk)}</b></div>
+     <div class="card-title" style="margin-top:4px">Sepsis Risk Trend (8h)</div>
+     <div class="chart-wrap" style="height:140px"><canvas id="risk-trend-chart" role="img" aria-label="Sepsis risk trend over 8 hours for ${p.name}">Sepsis risk trend for ${p.name}</canvas></div>
+    </div>
+    <div class="card">
+     <div class="card-title">Active Alerts</div>
+     ${alertsHTML}
+     <div class="card-title" style="margin-top:12px">SMS Alert Log</div>
+     <div class="sms-log">${smsHTML}</div>
+    </div>
+   </div>
+
+   <div>
+    <div class="card" style="margin-bottom:12px">
+     <div class="card-title">Explainable AI — Top Contributing Features</div>
+     <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">Features driving the sepsis prediction for this patient:</div>
+     ${featHTML}
+    </div>
+    <div class="card">
+     <div class="card-title">Current Vitals &amp; Labs</div>
+     <div class="vitals-grid">
+      <div class="vital-item"><div class="vital-lbl">Resp Rate</div><div class="vital-num ${vClass('Resp',p.vitals.Resp)}">${p.vitals.Resp} /min</div></div>
+      <div class="vital-item"><div class="vital-lbl">SBP/DBP</div><div class="vital-num">${p.vitals.SBP}/${p.vitals.DBP}</div></div>
+      <div class="vital-item"><div class="vital-lbl">WBC</div><div class="vital-num ${vClass('WBC',p.labs.WBC)}">${p.labs.WBC} k/μL</div></div>
+      <div class="vital-item"><div class="vital-lbl">Lactate</div><div class="vital-num ${p.labs.Lactate>2?'abn':''}">${p.labs.Lactate} mmol/L</div></div>
+      <div class="vital-item"><div class="vital-lbl">Creatinine</div><div class="vital-num ${p.labs.Creatinine>1.2?'warn':''}">${p.labs.Creatinine} mg/dL</div></div>
+      <div class="vital-item"><div class="vital-lbl">Platelets</div><div class="vital-num ${p.labs.Platelets<150?'warn':''}">${p.labs.Platelets} k/μL</div></div>
+      <div class="vital-item"><div class="vital-lbl">pH</div><div class="vital-num ${p.labs.pH<7.35?'abn':''}">${p.labs.pH}</div></div>
+      <div class="vital-item"><div class="vital-lbl">HCO₃</div><div class="vital-num ${p.labs.HCO3<22?'warn':''}">${p.labs.HCO3} mEq/L</div></div>
+      <div class="vital-item"><div class="vital-lbl">Glucose</div><div class="vital-num">${p.labs.Glucose} mg/dL</div></div>
+      <div class="vital-item"><div class="vital-lbl">FiO₂</div><div class="vital-num">${p.labs.FiO2}</div></div>
+      <div class="vital-item"><div class="vital-lbl">BUN</div><div class="vital-num">${p.labs.BUN} mg/dL</div></div>
+      <div class="vital-item"><div class="vital-lbl">Sodium</div><div class="vital-num">${p.labs.Sodium} mEq/L</div></div>
+     </div>
+    </div>
+   </div>
+  </div>
+
+  <div class="row3">
+   <div class="card">
+    <div class="card-title">Vital Trend (8h)</div>
+    <div class="tabs">${tabsHTML}</div>
+    <div class="chart-wrap"><canvas id="trend-chart" role="img" aria-label="${chartTab} trend for ${p.name}">${chartTab} trend data for ${p.name}</canvas></div>
+   </div>
+   <div class="card">
+    <div class="card-title">Lab Summary</div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+     <tr style="color:var(--color-text-secondary);font-size:11px"><td style="padding:4px 0">Parameter</td><td style="text-align:right">Value</td><td style="text-align:right">Status</td></tr>
+     ${[
+      ['WBC',p.labs.WBC,'k/μL',p.labs.WBC>11?'Elevated':'Normal'],
+      ['Lactate',p.labs.Lactate,'mmol/L',p.labs.Lactate>2?'High':'Normal'],
+      ['Creatinine',p.labs.Creatinine,'mg/dL',p.labs.Creatinine>1.2?'Elevated':'Normal'],
+      ['Platelets',p.labs.Platelets,'k/μL',p.labs.Platelets<150?'Low':'Normal'],
+      ['Bilirubin',p.labs.Bilirubin,'mg/dL',p.labs.Bilirubin>1.2?'High':'Normal'],
+      ['pH',p.labs.pH,'',p.labs.pH<7.35?'Acidosis':p.labs.pH>7.45?'Alkalosis':'Normal'],
+      ['Potassium',p.labs.Potassium,'mEq/L',p.labs.Potassium<3.5?'Low':'Normal'],
+      ['HCO₃',p.labs.HCO3,'mEq/L',p.labs.HCO3<22?'Low':'Normal'],
+     ].map(([n,v,u,s])=>`<tr style="border-top:0.5px solid var(--color-border-tertiary)">
+      <td style="padding:5px 0;color:var(--color-text-secondary)">${n}</td>
+      <td style="text-align:right;padding:5px 0;font-weight:500">${v} <span style="font-size:10px;color:var(--color-text-tertiary)">${u}</span></td>
+      <td style="text-align:right;padding:5px 0"><span class="badge ${s==='Normal'?'badge-ok':s==='Low'?'badge-info':'badge-danger'}">${s}</span></td>
+     </tr>`).join('')}
+    </table>
+   </div>
+  </div>
+  </div>
+ `;
+ setTimeout(()=>initCharts(p),50);
+}
+
+function selectPt(id){
+ selectedId=id;
+ chartTab='HR';
+ stopRealTimeUpdates();  // Stop previous updates
+ startRealTimeUpdates(); // Start for new patient
+ renderAll();
+}
+function setChartTab(tab,pid){
+ chartTab=tab;
+ const p=patients.find(x=>x.id===pid);
+ if(!p) return;
+ destroyCharts();
+ setTimeout(()=>initCharts(p),30);
+ document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.textContent===tab));
+}
+function startDischarge(){showDischarge=true;renderMain();}
+function cancelDischarge(){showDischarge=false;renderMain();}
+function confirmDischarge(id){
+ const p=patients.find(x=>x.id===id);
+ if(p) p.status='discharged';
+ showDischarge=false;
+ const remaining=patients.filter(x=>x.status==='admitted');
+ selectedId=remaining.length?remaining[0].id:-1;
+ renderAll();
+}
+function cancelAdmit(){showAdmit=false;renderMain();}
+function confirmAdmit(){
+ const name=document.getElementById('f-name')?.value||'New Patient';
+ const age=parseInt(document.getElementById('f-age')?.value)||50;
+ const gender=document.getElementById('f-gender')?.value||'M';
+ const ward=document.getElementById('f-ward')?.value||'ICU';
+ const doc=document.getElementById('f-doc')?.value||'Dr. Unknown';
+ const phone=document.getElementById('f-phone')?.value||'+91-00000-00000';
+
+ // Send to backend API
+ fetch('/api/patient/admit', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({name, age, gender, ward, doctor: doc, doctorPhone: phone})
+ })
+ .then(r => r.json())
+ .then(patient => {
+  patients.push(patient);
+  selectedId=patient.id;
+  showAdmit=false;
+  renderAll();
+  startRealTimeUpdates();
+ })
+ .catch(e => {
+  console.error('Admit failed:', e);
+  alert('Error admitting patient. Check console.');
+ });
+}
+function sendManualAlert(id){
+ const p=patients.find(x=>x.id===id);
+ if(!p) return;
+ sendSMS(p);
+ alertsSent[p.id]=true;
+ renderMain();
+}
+
+document.getElementById('admitBtn').addEventListener('click',()=>{showAdmit=true;renderMain();});
+
+function renderAll(){
+ renderSidebar();
+ renderMain();
+}
+
+autoAlert();
+renderAll();
+if(selectedId!==-1){
+ startRealTimeUpdates();
+}
+    </script>
+</body>
+</html>
+

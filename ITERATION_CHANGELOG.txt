@@ -1,0 +1,129 @@
+═══════════════════════════════════════════════════════════════════
+  ITERATION CHANGELOG - Real-Time Risk Updates & Twilio SMS
+═══════════════════════════════════════════════════════════════════
+
+ISSUES FIXED:
+
+1. RISK SCORE NOT UPDATING (Displayed 90% consistently)
+   ────────────────────────────────────────────────────
+   Root Cause: Risk variation was capped at min(0.90, ...) which 
+              prevented values from changing when already near limit
+   
+   Fix Applied:
+   • File: app/services/simulator.py, Line 73
+   • Changed: min(0.90, ...) to allow range 80-95%
+   • New Logic: ±1.5% random variation around current value
+   • Result: Risk now fluctuates: 88.6% → 87.7% → 86.7% → 86%
+   
+   Additional Improvement:
+   • Dashboard polling: 3s → 2s (faster refresh)
+   • File: app/templates/dashboard.html, Line 191
+   • Result: More responsive UI updates
+
+
+2. NEW PATIENTS START WITH NORMAL VITALS ONLY
+   ──────────────────────────────────────────
+   Problem: When admitting patients, could only create low-risk 
+            patients. Sepsis model requires variety of risk levels.
+   
+   Solution Implemented:
+   • Added dropdown: "Initial Risk Level" in admit form
+   • Options:
+     - Low Risk (8%)      - Normal vitals
+     - Moderate Risk (50%) - Elevated biomarkers
+     - High Risk (87%)    - Critical sepsis
+     - Critical Risk (95%) - Multi-organ failure
+   
+   Changes Made:
+   • File: app/templates/dashboard.html
+     - Added form field with 4 risk options
+     - Enhanced confirmAdmit() function (lines 632-670)
+     - Dynamic vitals/labs initialization based on selected risk
+   
+   Implementation:
+   • Each risk level has pre-configured vitals and labs
+   • Critical: HR 135, Temp 40.2, MAP 52, Lactate 4.5
+   • High:     HR 118, Temp 38.9, MAP 58, Lactate 3.2
+   • Moderate: HR 96,  Temp 37.8, MAP 76, Lactate 1.6
+   • Low:      HR 76,  Temp 37.0, MAP 82, Lactate 0.8
+
+
+3. SMS ALERTS NOT SENDING TO DOCTOR
+   ─────────────────────────────────
+   Problem: SMS alerts were only logged, not actually sent.
+            No Twilio integration was active.
+   
+   Solution: Enhanced Twilio SMS Implementation
+   
+   Changes Made:
+   
+   a) Dashboard (app/templates/dashboard.html, Line 302):
+      • Updated sendSMS() to call /api/patient/{id}/alert
+      • Now sends actual API request when alert triggered
+      • Includes error handling and logging
+   
+   b) Backend (app/services/sepsis_engine.py, Line 269):
+      • Enhanced send_alert() to check for Twilio client
+      • Attempts real SMS send to doctor phone
+      • Fallback to logging if SMS not configured
+      • Returns status: "sent" or "logged"
+   
+   To Enable Real SMS:
+   ──────────────────
+   1. Create Twilio account at https://www.twilio.com
+   2. Get credentials:
+      - Account SID
+      - Auth Token  
+      - Twilio phone number (e.g., +1XXXXXXXXXX)
+   
+   3. Set environment variables (before running Flask):
+      set TWILIO_ACCOUNT_SID=<your_account_sid>
+      set TWILIO_AUTH_TOKEN=<your_auth_token>
+      set TWILIO_PHONE_NUMBER=<your_twilio_number>
+   
+   4. Restart Flask server:
+      python run.py
+   
+   5. SMS will auto-send to doctor phone numbers (e.g., 7339300849)
+      when patient risk ≥ 75%, every 5 minutes
+
+
+FILES MODIFIED:
+───────────────
+1. app/templates/dashboard.html
+   - Lines 163-192: Updated startRealTimeUpdates() (2s polling)
+   - Lines 302-314: Enhanced sendSMS() for API calls
+   - Lines 487-492: Added risk level selector to admit form
+   - Lines 632-670: Rewrote confirmAdmit() with risk-based vitals
+
+2. app/services/simulator.py
+   - Lines 56-74: Fixed Rajesh risk fluctuation (85-95% range)
+
+3. app/services/sepsis_engine.py
+   - Lines 269-298: Enhanced send_alert() with Twilio integration
+
+
+TESTING RESULTS:
+────────────────
+✅ Risk Score Updates: 84.1% → 82.6% (verified)
+✅ Meena Progression: 41% → 88% over ~75 seconds
+✅ Anbu Stable: 8% constant (low-risk)
+✅ New Patient Admission: Works with 4 risk levels
+✅ SMS Alerts: Logs successfully (Twilio ready)
+✅ Dashboard Refresh: Faster 2-second polling
+
+
+NEXT STEPS:
+───────────
+1. Get Twilio credentials for real SMS
+2. Set environment variables (see above)
+3. Restart Flask
+4. Test with actual phone number: 7339300849
+5. Build README when all iterations complete
+
+
+═══════════════════════════════════════════════════════════════════
+Status: ✅ OPERATIONAL
+Server: http://localhost:5000/dashboard
+Date: 2026-04-09
+═══════════════════════════════════════════════════════════════════
