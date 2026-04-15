@@ -102,6 +102,9 @@
         .sms-entry { padding: 3px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
         .sms-entry:last-child { border: none; }
         .empty-state { text-align: center; padding: 40px 20px; color: var(--color-text-secondary); font-size: 13px; }
+        .hitl-modal { position: absolute; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .hitl-box { background: var(--color-background-primary); border-radius: var(--border-radius-lg); padding: 20px; width: 380px; border: 0.5px solid var(--color-border-secondary); }
+        .hitl-box textarea { resize: vertical; }
     </style>
 </head>
 <body>
@@ -110,6 +113,7 @@
             <div class="logo">ICU Monitor <span>Sepsis Early Warning</span></div>
             <div id="pt-list" class="pt-list"></div>
             <div class="admit-btn" id="admitBtn">+ Admit Patient</div>
+            <div class="admit-btn" id="feedbackBtn" onclick="goToFeedbackHistory()" style="background: #EAF3DE; color: #3B6D11; border-color: #C0DD97; margin-top: 4px;">View Feedback History</div>
         </div>
         <div class="main" id="main-content"></div>
     </div>
@@ -164,8 +168,8 @@ function startRealTimeUpdates() {
  if (updateInterval) clearInterval(updateInterval);
 
  updateInterval = setInterval(async () => {
-  // Don't re-render if a form is open (admit or discharge modal)
-  if (showAdmit || showDischarge) return;
+  // Don't re-render if a form is open (admit or discharge or HITL modal)
+  if (showAdmit || showDischarge || showHitl) return;
 
   // Fetch updated patient data
   const updated = await fetchLivePatientData(selectedId);
@@ -276,6 +280,9 @@ let patients = JSON.parse(JSON.stringify(PATIENTS));
 let selectedId = 1;
 let showDischarge = false;
 let showAdmit = false;
+let showHitl = false;
+let hitlPatientId = null;
+let hitlPatientName = '';
 let smsLog = [];
 let charts = {};
 let alertsSent = {};
@@ -509,6 +516,31 @@ function renderMain(){
     <button class="btn btn-green" onclick="confirmAdmit()">Admit</button>
    </div>
   </div></div>`:''}
+  ${showHitl?`<div class="hitl-modal"><div class="hitl-box">
+   <div class="modal-title">Clinician Feedback</div>
+   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Patient: <b>${hitlPatientName}</b></div>
+   <label style="margin-top:8px">Prediction Accuracy</label>
+   <select id="f-hitl-accuracy">
+    <option value="">Rate the model's prediction...</option>
+    <option value="correct">Correct - Model was accurate</option>
+    <option value="partial">Partially Correct - Missed some details</option>
+    <option value="incorrect">Incorrect - Model was wrong</option>
+   </select>
+   <label style="margin-top:10px">Clinical Notes</label>
+   <textarea id="f-hitl-notes" placeholder="Add your clinical observations..." style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-family:inherit;font-size:13px;min-height:80px;background:var(--color-background-secondary)"></textarea>
+   <label style="margin-top:10px">Recommended Action</label>
+   <select id="f-hitl-action">
+    <option value="">Select action...</option>
+    <option value="monitor">Continue monitoring</option>
+    <option value="escalate">Escalate care</option>
+    <option value="investigate">Further investigation needed</option>
+    <option value="discharge">Ready for discharge</option>
+   </select>
+   <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+    <button class="btn btn-gray" onclick="closeHitlFeedback()">Cancel</button>
+    <button class="btn btn-blue" onclick="submitHitlFeedback(${hitlPatientId})">Submit Feedback</button>
+   </div>
+  </div></div>`:''}
 
   <div class="hdr">
    <div class="hdr-left">
@@ -517,6 +549,9 @@ function renderMain(){
    </div>
    <div class="action-btns">
     <button class="btn btn-blue" onclick="sendManualAlert(${p.id})">Send Alert</button>
+    <button class="btn btn-blue" onclick="openHitlFeedback(${p.id}, '${p.name}')">Clinician Feedback</button>
+    <button class="btn btn-green" onclick="downloadPatientReport(${p.id})">Download Report</button>
+    <button class="btn btn-green" onclick="downloadMedicalCert(${p.id})">Medical Certificate</button>
     <button class="btn btn-red" onclick="startDischarge()">Discharge</button>
    </div>
   </div>
@@ -683,7 +718,74 @@ function sendManualAlert(id){
  renderMain();
 }
 
+function openHitlFeedback(patientId, patientName){
+ hitlPatientId=patientId;
+ hitlPatientName=patientName;
+ showHitl=true;
+ renderMain();
+}
+
+function closeHitlFeedback(){
+ showHitl=false;
+ hitlPatientId=null;
+ hitlPatientName='';
+ renderMain();
+}
+
+function submitHitlFeedback(patientId){
+ const accuracy=document.getElementById('f-hitl-accuracy')?.value;
+ const notes=document.getElementById('f-hitl-notes')?.value;
+ const action=document.getElementById('f-hitl-action')?.value;
+ 
+ if(!accuracy || !notes || !action){
+  alert('Please fill in all fields');
+  return;
+ }
+ 
+ const user=JSON.parse(localStorage.getItem('user')||'{}');
+ const clinicianId=user.id||'unknown';
+ 
+ fetch('/api/hitl/submit', {
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({
+   patient_id:patientId,
+   clinician_id:clinicianId,
+   accuracy:accuracy,
+   clinical_notes:notes,
+   recommended_action:action,
+   timestamp:new Date().toISOString()
+  })
+ })
+ .then(r=>r.json())
+ .then(data=>{
+  if(data.success){
+   alert('Feedback submitted successfully');
+   closeHitlFeedback();
+   renderMain();
+  } else {
+   alert('Error submitting feedback');
+  }
+ })
+ .catch(e=>{
+  console.error('HITL submission error:',e);
+  alert('Error submitting feedback. Check console.');
+ });
+}
+
 document.getElementById('admitBtn').addEventListener('click',()=>{showAdmit=true;renderMain();});
+
+function goToFeedbackHistory(){
+ window.location.href='/hitl-feedback';
+}
+
+function downloadPatientReport(patientId){
+ window.location.href=`/patient/report/${patientId}`;
+}
+
+function downloadMedicalCert(patientId){
+ window.location.href=`/patient/certificate/${patientId}`;
+}
 
 function renderAll(){
  renderSidebar();

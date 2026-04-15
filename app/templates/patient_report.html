@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Report - ML-Sepsis</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f0f0;
+            color: #333;
+            padding: 20px;
+        }
+
+        .report-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            line-height: 1.6;
+        }
+
+        .report-header {
+            text-align: center;
+            border-bottom: 2px solid #378ADD;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .hospital-name {
+            font-size: 24px;
+            font-weight: 600;
+            color: #378ADD;
+        }
+
+        .report-title {
+            font-size: 20px;
+            font-weight: 500;
+            margin-top: 10px;
+            color: #333;
+        }
+
+        .report-generated {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #185FA5;
+            border-left: 4px solid #378ADD;
+            padding-left: 12px;
+            margin-bottom: 15px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .vitals-table, .labs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .vitals-table th, .labs-table th,
+        .vitals-table td, .labs-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 13px;
+        }
+
+        .vitals-table th, .labs-table th {
+            background: #f7f7f7;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .vitals-table tr:hover, .labs-table tr:hover {
+            background: #fafafa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-high { background: #FCEBEB; color: #A32D2D; }
+        .status-warning { background: #FAEEDA; color: #854F0B; }
+        .status-normal { background: #EAF3DE; color: #3B6D11; }
+
+        .risk-section {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .risk-score {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .risk-percentage {
+            font-size: 36px;
+            font-weight: 700;
+            min-width: 100px;
+        }
+
+        .risk-percentage.high { color: #A32D2D; }
+        .risk-percentage.warning { color: #854F0B; }
+        .risk-percentage.normal { color: #3B6D11; }
+
+        .risk-bar {
+            flex: 1;
+        }
+
+        .risk-bar-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .risk-bar-container {
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .risk-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3B6D11, #854F0B, #A32D2D);
+            border-radius: 10px;
+        }
+
+        .features-list {
+            background: #f9f9f9;
+            border-radius: 6px;
+            padding: 16px;
+        }
+
+        .feature-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 13px;
+        }
+
+        .feature-item:last-child {
+            border-bottom: none;
+        }
+
+        .feature-name {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .feature-contribution {
+            color: #666;
+        }
+
+        .feedback-entry {
+            background: #f9f9f9;
+            border-left: 3px solid #378ADD;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .feedback-accuracy {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+        }
+
+        .feedback-correct { background: #EAF3DE; color: #3B6D11; }
+        .feedback-partial { background: #FAEEDA; color: #854F0B; }
+        .feedback-incorrect { background: #FCEBEB; color: #A32D2D; }
+
+        .print-btn {
+            background: #378ADD;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .print-btn:hover {
+            background: #2563dd;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .print-btn {
+                display: none;
+            }
+            .report-container {
+                box-shadow: none;
+                max-width: 100%;
+                padding: 0;
+            }
+        }
+
+        .footer {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            margin-top: 40px;
+            font-size: 11px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+
+        <div class="report-header">
+            <div class="hospital-name">Sepsis ICU Monitoring System</div>
+            <div class="report-title">Medical Report</div>
+            <div class="report-generated">Generated on <span id="reportDate"></span></div>
+        </div>
+
+        <!-- Patient Information -->
+        <div class="section">
+            <div class="section-title">Patient Information</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Patient Name</div>
+                    <div class="info-value" id="patientName">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Patient ID</div>
+                    <div class="info-value" id="patientId">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Age</div>
+                    <div class="info-value" id="patientAge">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Gender</div>
+                    <div class="info-value" id="patientGender">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Ward</div>
+                    <div class="info-value" id="patientWard">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Admission Date</div>
+                    <div class="info-value" id="admissionDate">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Risk Summary -->
+        <div class="section">
+            <div class="section-title">Sepsis Risk Assessment</div>
+            <div class="risk-section">
+                <div class="risk-score">
+                    <div>
+                        <div class="risk-percentage" id="riskPercentage">-</div>
+                        <div style="font-size: 12px; color: #666;">Current Risk Score</div>
+                    </div>
+                    <div class="risk-bar">
+                        <div class="risk-bar-label">Risk Level Distribution</div>
+                        <div class="risk-bar-container">
+                            <div class="risk-bar-fill" id="riskBarFill"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Risk Classification</div>
+                    <span class="status-badge" id="riskLevelBadge">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Vitals -->
+        <div class="section">
+            <div class="section-title">Current Vital Signs</div>
+            <table class="vitals-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="vitalsBody">
+                    <tr><td colspan="3" style="text-align: center; padding: 20px; color: #999;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Current Labs -->
+        <div class="section">
+            <div class="section-title">Laboratory Values</div>
+            <table class="labs-table">
+                <thead>
+                    <tr>
+                        <th>Test</th>
+                        <th>Value</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="labsBody">
+                    <tr><td colspan="3" style="text-align: center; padding: 20px; color: #999;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Top Contributing Features -->
+        <div class="section">
+            <div class="section-title">Top Contributing Risk Factors</div>
+            <div class="features-list" id="featuresList">
+                <div style="padding: 20px; text-align: center; color: #999;">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Clinical Feedback -->
+        <div class="section" id="feedbackSection" style="display: none;">
+            <div class="section-title">Clinical Feedback Summary</div>
+            <div id="feedbackContainer"></div>
+        </div>
+
+        <div class="footer">
+            <p>This report is generated from the Sepsis ICU Monitoring System. Please consult with your healthcare provider for medical advice.</p>
+            <p style="margin-top: 8px;">Report ID: <span id="reportId"></span></p>
+        </div>
+    </div>
+
+    <script>
+        const patientId = {{ patient_id }};
+
+        async function loadReport() {
+            try {
+                const response = await fetch(`/api/patient/${patientId}/report`);
+                if (!response.ok) throw new Error('Failed to load report');
+                
+                const data = await response.json();
+                if (!data.success) throw new Error('Report data unavailable');
+                
+                const report = data.report;
+                populateReport(report);
+            } catch (error) {
+                console.error('Error:', error);
+                document.querySelector('.report-container').innerHTML = `
+                    <div style="padding: 40px; text-align: center; color: #999;">
+                        <h2>Error Loading Report</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function populateReport(report) {
+            // Set dates
+            document.getElementById('reportDate').textContent = new Date(report.generated_at).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            document.getElementById('reportId').textContent = `RPT-${patientId}-${Date.now()}`;
+
+            // Patient info
+            document.getElementById('patientName').textContent = report.patient_info.name;
+            document.getElementById('patientId').textContent = report.patient_info.id;
+            document.getElementById('patientAge').textContent = report.patient_info.age + ' years';
+            document.getElementById('patientGender').textContent = report.patient_info.gender === 'M' ? 'Male' : 'Female';
+            document.getElementById('patientWard').textContent = report.patient_info.ward;
+            document.getElementById('admissionDate').textContent = report.patient_info.admitted;
+
+            // Risk score
+            const risk = (parseFloat(report.current_risk.risk_score) * 100).toFixed(1);
+            document.getElementById('riskPercentage').textContent = risk + '%';
+            document.getElementById('riskPercentage').className = 'risk-percentage ' + getRiskClass(risk);
+            
+            const badgeText = report.current_risk.risk_level;
+            const badgeEl = document.getElementById('riskLevelBadge');
+            badgeEl.textContent = badgeText;
+            badgeEl.className = 'status-badge status-' + getRiskClass(risk);
+
+            document.getElementById('riskBarFill').style.width = risk + '%';
+
+            // Vitals
+            const vitals = report.current_vitals;
+            const vitalsHtml = Object.entries(vitals).map(([param, value]) => {
+                const status = getVitalStatus(param, value);
+                return `
+                    <tr>
+                        <td>${formatParamName(param)}</td>
+                        <td>${formatValue(value)}</td>
+                        <td><span class="status-badge status-${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</span></td>
+                    </tr>
+                `;
+            }).join('');
+            document.getElementById('vitalsBody').innerHTML = vitalsHtml || '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #999;">No vitals data</td></tr>';
+
+            // Labs
+            const labs = report.current_labs;
+            const labsHtml = Object.entries(labs).map(([test, value]) => {
+                const status = getLabStatus(test, value);
+                return `
+                    <tr>
+                        <td>${formatParamName(test)}</td>
+                        <td>${formatValue(value)}</td>
+                        <td><span class="status-badge status-${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</span></td>
+                    </tr>
+                `;
+            }).join('');
+            document.getElementById('labsBody').innerHTML = labsHtml || '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #999;">No lab data</td></tr>';
+
+            // Features
+            if (report.top_features && report.top_features.length > 0) {
+                const featuresHtml = report.top_features.slice(0, 7).map(f => `
+                    <div class="feature-item">
+                        <span class="feature-name">${f.name}</span>
+                        <span class="feature-contribution">${(f.contrib * 100).toFixed(1)}% contribution</span>
+                    </div>
+                `).join('');
+                document.getElementById('featuresList').innerHTML = featuresHtml;
+            }
+
+            // Feedback
+            if (report.clinical_feedback && report.clinical_feedback.length > 0) {
+                document.getElementById('feedbackSection').style.display = 'block';
+                const feedbackHtml = report.clinical_feedback.map(f => `
+                    <div class="feedback-entry">
+                        <div><span class="feedback-accuracy feedback-${f.accuracy}">${f.accuracy.replace('_', ' ').toUpperCase()}</span></div>
+                        <div style="margin-bottom: 6px;"><strong>By:</strong> ${f.clinician_id} on ${formatDate(f.timestamp)}</div>
+                        ${f.clinical_notes ? `<div><strong>Notes:</strong> ${f.clinical_notes}</div>` : ''}
+                    </div>
+                `).join('');
+                document.getElementById('feedbackContainer').innerHTML = feedbackHtml;
+            }
+        }
+
+        function getRiskClass(risk) {
+            const r = parseFloat(risk);
+            if (r >= 75) return 'high';
+            if (r >= 40) return 'warning';
+            return 'normal';
+        }
+
+        function getVitalStatus(param, value) {
+            // Simplified status - expand based on your ranges
+            return 'normal';
+        }
+
+        function getLabStatus(test, value) {
+            return 'normal';
+        }
+
+        function formatParamName(name) {
+            return name.split(/(?=[A-Z])/).join(' ').replace(/^\w/, c => c.toUpperCase());
+        }
+
+        function formatValue(value) {
+            return typeof value === 'number' ? value.toFixed(2) : value;
+        }
+
+        function formatDate(timestamp) {
+            return new Date(timestamp).toLocaleDateString('en-IN');
+        }
+
+        window.addEventListener('load', loadReport);
+    </script>
+</body>
+</html>

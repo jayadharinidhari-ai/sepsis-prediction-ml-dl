@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinical Authentication - ML-Sepsis System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=1200&h=800&fit=crop') center/cover no-repeat;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 420px;
+            padding: 50px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        
+        .tagline {
+            font-size: 13px;
+            color: #666;
+            font-weight: 400;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            background: #fafafa;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+        
+        input:hover, select:hover {
+            border-color: #bbb;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            background: white;
+            border-color: #378ADD;
+            box-shadow: 0 0 0 3px rgba(55, 138, 221, 0.08);
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #378ADD 0%, #2563dd 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(55, 138, 221, 0.3);
+        }
+        
+        .login-btn:active {
+            transform: translateY(0);
+        }
+        
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 4px solid #c33;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 13px;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .credentials-box {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 25px;
+            font-size: 12px;
+        }
+        
+        .credentials-box h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .credential-item {
+            margin-bottom: 8px;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .credential-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .credential-role {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: 500;
+            margin-left: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo-text">ML-Sepsis</div>
+            <div class="tagline">Clinical Decision Support System</div>
+        </div>
+        
+        <div id="errorMessage" class="error-message"></div>
+        
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    placeholder="Enter your username"
+                    required
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input 
+                    type="text" 
+                    id="name" 
+                    placeholder="Enter your full name"
+                    required
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="role">Role</label>
+                <select id="role" required>
+                    <option value="">Select your role...</option>
+                    <option value="clinician">Clinician</option>
+                    <option value="nurse">Nurse</option>
+                    <option value="patient">Patient</option>
+                </select>
+            </div>
+
+            <button type="submit" class="login-btn">Sign In</button>
+        </form>
+
+        <div class="credentials-box">
+            <h4>Demo Credentials</h4>
+            <div class="credential-item">Username: <b>DR_SMITH</b> <span class="credential-role">Clinician</span></div>
+            <div class="credential-item">Username: <b>NURSE_JOHN</b> <span class="credential-role">Nurse</span></div>
+            <div class="credential-item">Username: <b>PAT_001</b> <span class="credential-role">Patient</span></div>
+        </div>
+    </div>
+
+    <script>
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const name = document.getElementById('name').value;
+            const role = document.getElementById('role').value;
+            
+            if (!username || !name || !role) {
+                showError('Please fill in all fields');
+                return;
+            }
+            
+            const user = {
+                id: username,
+                name: name,
+                role: role,
+                loginTime: new Date().toISOString()
+            };
+            
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            if (role === 'clinician') {
+                window.location.href = '/dashboard';
+            } else {
+                window.location.href = '/dashboard';
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => {
+                errorDiv.classList.remove('show');
+            }, 5000);
+        }
+
+        window.addEventListener('load', () => {
+            const user = localStorage.getItem('user');
+            if (user) {
+                window.location.href = '/dashboard';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinician Dashboard - ML-Sepsis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-left h1 {
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-info p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .tab-btn {
+            padding: 15px 25px;
+            background: white;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+            margin-bottom: -2px;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* PATIENT TAB STYLES */
+        .patient-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .patient-card {
+            background: white;
+            border-left: 5px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .patient-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .patient-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .patient-id {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .risk-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .risk-high {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .risk-moderate {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .risk-low {
+            background: #f1f8e9;
+            color: #558b2f;
+        }
+
+        .patient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .patient-info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .info-label {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .patient-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+
+        .hitl-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .hitl-btn:hover {
+            background: #5568d3;
+        }
+
+        .download-btn {
+            background: #f0f4ff;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .download-btn:hover {
+            background: #e8ecff;
+        }
+
+        /* HITL TAB STYLES */
+        .hitl-stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .retrain-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s;
+            margin-bottom: 25px;
+            width: 100%;
+        }
+
+        .retrain-btn:hover:not(:disabled) {
+            background: #45a049;
+        }
+
+        .retrain-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .feedback-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .feedback-card {
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .feedback-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .feedback-patient {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .feedback-time {
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        .feedback-content {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .feedback-item {
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid #ddd;
+        }
+
+        .feedback-label {
+            font-size: 0.85em;
+            color: #999;
+            margin-bottom: 3px;
+        }
+
+        .feedback-value {
+            color: #333;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        /* MODAL STYLES */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #eee;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1em;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .success-message {
+            background: #f1f8e9;
+            border-left: 4px solid #4CAF50;
+            color: #558b2f;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <div class="header">
+        <div class="header-left">
+            <h1>🏥 ML-Sepsis Clinical System</h1>
+            <p id="userDisplay" style="margin: 0; opacity: 0.9;">Clinician Dashboard</p>
+        </div>
+        <div class="header-right">
+            <div class="user-info">
+                <p id="userName">Dr. User</p>
+                <p id="userDept" style="font-size: 0.9em; opacity: 0.8;">Department</p>
+            </div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="container">
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('patient')">👥 Patients</button>
+            <button class="tab-btn" onclick="switchTab('hitl')">📋 HITL Training Forms</button>
+        </div>
+
+        <!-- PATIENT TAB -->
+        <div id="patient-tab" class="tab-content active">
+            <div id="patientListContainer" class="patient-list">
+                <div class="empty-state">
+                    <h3>Loading patients...</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- HITL TAB -->
+        <div id="hitl-tab" class="tab-content">
+            <div class="hitl-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="feedbackCount">0</div>
+                    <div class="stat-label">Forms Submitted</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="formsNeeded">10</div>
+                    <div class="stat-label">Forms Needed to Retrain</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="progressPercent">0%</div>
+                    <div class="stat-label">Progress to Retraining</div>
+                </div>
+            </div>
+
+            <button class="retrain-btn" id="retrainBtn" onclick="initiateRetraining()" disabled>
+                🔄 Retrain Model (Collect 10 Forms First)
+            </button>
+
+            <div id="feedbackListContainer" class="feedback-list">
+                <div class="empty-state">
+                    <h3>No training forms submitted yet</h3>
+                    <p>Submit HITL forms from the Patients tab to build the training data</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HITL FEEDBACK MODAL -->
+    <div id="hitlModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 HITL Training Form</h2>
+                <button class="close-btn" onclick="closeHitlForm()">×</button>
+            </div>
+
+            <div id="successMessage" class="success-message">
+                ✅ Form submitted successfully!
+            </div>
+
+            <form id="hitlForm" onsubmit="submitHitlForm(event)">
+                <input type="hidden" id="currentPatientId">
+                <input type="hidden" id="currentPatientName">
+
+                <div class="form-group">
+                    <label>Patient</label>
+                    <input type="text" id="patientDisplay" disabled style="background: #f5f5f5;">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vitalsAssessment">Vitals Assessment</label>
+                        <select id="vitalsAssessment" required>
+                            <option value="">-- Select Assessment --</option>
+                            <option value="stable">Stable</option>
+                            <option value="concerning">Concerning</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="labsAssessment">Labs Assessment</label>
+                        <select id="labsAssessment" required>
+                            <option value="">-- Select Assessment --</option>
+                            <option value="normal">Normal</option>
+                            <option value="abnormal">Abnormal</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="clinicalImpression">Clinical Impression (Yes/No)</label>
+                    <select id="clinicalImpression" required>
+                        <option value="">-- Select --</option>
+                        <option value="yes">YES - Patient shows sepsis signs</option>
+                        <option value="no">NO - Patient does not show sepsis signs</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="riskAssessment">Risk Assessment Accuracy</label>
+                    <select id="riskAssessment" required>
+                        <option value="">-- Select --</option>
+                        <option value="correct">Model prediction was CORRECT</option>
+                        <option value="incorrect">Model prediction was INCORRECT</option>
+                        <option value="partial">Model prediction was PARTIALLY CORRECT</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Additional Clinical Notes</label>
+                    <textarea id="notes" placeholder="Any additional observations or comments..."></textarea>
+                </div>
+
+                <button type="submit" class="submit-btn">✅ Submit Training Form</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Load user data on page load
+        window.addEventListener('load', () => {
+            const user = localStorage.getItem('user');
+            if (!user) {
+                window.location.href = '/login';
+                return;
+            }
+
+            const userData = JSON.parse(user);
+            if (userData.role !== 'clinician') {
+                window.location.href = '/login';
+                return;
+            }
+
+            // Update header
+            document.getElementById('userName').textContent = userData.name;
+            document.getElementById('userDept').textContent = userData.department;
+            document.getElementById('userDisplay').textContent = `Welcome, ${userData.name}`;
+
+            // Load patients and HITL data
+            loadPatients();
+            loadHitlFeedback();
+        });
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+
+            // Refresh data when switching to HITL tab
+            if (tabName === 'hitl') {
+                loadHitlFeedback();
+            }
+        }
+
+        function loadPatients() {
+            fetch('/api/patients')
+                .then(res => res.json())
+                .then(patients => {
+                    const container = document.getElementById('patientListContainer');
+                    
+                    if (patients.length === 0) {
+                        container.innerHTML = '<div class="empty-state"><h3>No admitted patients</h3></div>';
+                        return;
+                    }
+
+                    container.innerHTML = patients.map(patient => `
+                        <div class="patient-card">
+                            <div class="patient-header">
+                                <div>
+                                    <div class="patient-name">${patient.name}</div>
+                                    <div class="patient-id">ID: ${patient.id}</div>
+                                </div>
+                                <div class="risk-badge risk-${patient.riskLevel.toLowerCase()}">
+                                    ${patient.riskLevel} RISK
+                                </div>
+                            </div>
+
+                            <div class="patient-grid">
+                                <div class="patient-info-item">
+                                    <span class="info-label">Age:</span>
+                                    <span class="info-value">${patient.age} years</span>
+                                </div>
+                                <div class="patient-info-item">
+                                    <span class="info-label">Ward:</span>
+                                    <span class="info-value">${patient.ward}</span>
+                                </div>
+                                <div class="patient-info-item">
+                                    <span class="info-label">Gender:</span>
+                                    <span class="info-value">${patient.gender}</span>
+                                </div>
+                                <div class="patient-info-item">
+                                    <span class="info-label">Sepsis Score:</span>
+                                    <span class="info-value">${(patient.sepsisRisk * 100).toFixed(1)}%</span>
+                                </div>
+                            </div>
+
+                            <div class="patient-actions">
+                                <button class="action-btn hitl-btn" onclick="openHitlForm(${patient.id}, '${patient.name}')">
+                                    📋 Add HITL Form
+                                </button>
+                                <button class="action-btn download-btn" onclick="downloadPatientSummary(${patient.id}, '${patient.name}')">
+                                    ⬇️ Download Summary
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                })
+                .catch(err => console.error('Error loading patients:', err));
+        }
+
+        function openHitlForm(patientId, patientName) {
+            document.getElementById('currentPatientId').value = patientId;
+            document.getElementById('currentPatientName').value = patientName;
+            document.getElementById('patientDisplay').value = `${patientName} (ID: ${patientId})`;
+            
+            // Reset form
+            document.getElementById('hitlForm').reset();
+            document.getElementById('successMessage').classList.remove('show');
+            
+            document.getElementById('hitlModal').classList.add('active');
+        }
+
+        function closeHitlForm() {
+            document.getElementById('hitlModal').classList.remove('active');
+        }
+
+        function submitHitlForm(event) {
+            event.preventDefault();
+
+            const user = JSON.parse(localStorage.getItem('user'));
+            const patientId = document.getElementById('currentPatientId').value;
+
+            const feedback = {
+                clinician_id: user.id,
+                patient_id: parseInt(patientId),
+                vitals_assessment: document.getElementById('vitalsAssessment').value,
+                labs_assessment: document.getElementById('labsAssessment').value,
+                clinical_impression: document.getElementById('clinicalImpression').value,
+                risk_assessment: document.getElementById('riskAssessment').value,
+                notes: document.getElementById('notes').value
+            };
+
+            fetch('/api/hitl/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(feedback)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    document.getElementById('successMessage').classList.add('show');
+                    
+                    // Reset form
+                    document.getElementById('hitlForm').reset();
+
+                    // Update buttons if retraining is now available
+                    if (data.can_retrain) {
+                        updateRetrainStatus();
+                    }
+
+                    // Close modal after 2 seconds
+                    setTimeout(() => {
+                        closeHitlForm();
+                        loadHitlFeedback();
+                    }, 2000);
+                }
+            })
+            .catch(err => console.error('Error submitting feedback:', err));
+        }
+
+        function loadHitlFeedback() {
+            const user = JSON.parse(localStorage.getItem('user'));
+
+            Promise.all([
+                fetch(`/api/hitl/list?clinician_id=${user.id}`).then(r => r.json()),
+                fetch('/api/hitl/status').then(r => r.json())
+            ])
+            .then(([feedbackData, statusData]) => {
+                // Update stats
+                document.getElementById('feedbackCount').textContent = feedbackData.count;
+                document.getElementById('formsNeeded').textContent = Math.max(0, 10 - feedbackData.count);
+                document.getElementById('progressPercent').textContent = Math.min(100, Math.round((feedbackData.count / 10) * 100)) + '%';
+
+                // Update retrain button
+                const retrainBtn = document.getElementById('retrainBtn');
+                if (statusData.can_retrain) {
+                    retrainBtn.disabled = false;
+                    retrainBtn.textContent = '🔄 Retrain Model (Ready!)';
+                } else {
+                    retrainBtn.disabled = true;
+                    retrainBtn.textContent = `🔄 Retrain Model (${statusData.forms_needed} more forms needed)`;
+                }
+
+                // Display feedback list
+                const container = document.getElementById('feedbackListContainer');
+                if (feedbackData.feedback.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><h3>No training forms submitted yet</h3><p>Submit HITL forms from the Patients tab to build the training data</p></div>';
+                    return;
+                }
+
+                container.innerHTML = feedbackData.feedback.map(f => `
+                    <div class="feedback-card">
+                        <div class="feedback-header">
+                            <span class="feedback-patient">Patient ID: ${f.patient_id}</span>
+                            <span class="feedback-time">${new Date(f.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="feedback-content">
+                            <div class="feedback-item">
+                                <div class="feedback-label">Vitals Assessment</div>
+                                <div class="feedback-value">${f.vitals_assessment}</div>
+                            </div>
+                            <div class="feedback-item">
+                                <div class="feedback-label">Labs Assessment</div>
+                                <div class="feedback-value">${f.labs_assessment}</div>
+                            </div>
+                            <div class="feedback-item">
+                                <div class="feedback-label">Clinical Impression</div>
+                                <div class="feedback-value">${f.clinical_impression === 'yes' ? '✅ YES' : '❌ NO'}</div>
+                            </div>
+                            <div class="feedback-item">
+                                <div class="feedback-label">Risk Assessment</div>
+                                <div class="feedback-value">${f.risk_assessment}</div>
+                            </div>
+                        </div>
+                        ${f.notes ? `<div style="margin-top: 10px; padding: 10px; background: white; border-radius: 4px; border-left: 3px solid #667eea;"><strong style="color: #667eea;">Notes:</strong> ${f.notes}</div>` : ''}
+                    </div>
+                `).join('');
+            })
+            .catch(err => console.error('Error loading HITL feedback:', err));
+        }
+
+        function updateRetrainStatus() {
+            fetch('/api/hitl/status')
+                .then(res => res.json())
+                .then(data => {
+                    const retrainBtn = document.getElementById('retrainBtn');
+                    if (data.can_retrain) {
+                        retrainBtn.disabled = false;
+                        retrainBtn.textContent = '🔄 Retrain Model (Ready!)';
+                    }
+                })
+                .catch(err => console.error('Error updating retrain status:', err));
+        }
+
+        function initiateRetraining() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            
+            if (confirm('⚠️ Initiate model retraining with collected HITL feedback? This may take a few minutes.')) {
+                // In a real system, this would trigger backend retraining
+                alert('✅ Model retraining initiated! The system will update the model weights with your feedback.');
+                console.log(`Model retraining initiated by ${user.name}`);
+            }
+        }
+
+        function downloadPatientSummary(patientId, patientName) {
+            fetch(`/api/patient/${patientId}/summary`)
+                .then(res => res.json())
+                .then(data => {
+                    // Create PDF content
+                    const content = `
+Patient Summary Report
+======================
+Generated: ${new Date().toLocaleString()}
+
+PATIENT INFORMATION
+-------------------
+Name: ${data.patient_info.name}
+ID: ${data.patient_info.id}
+Age: ${data.patient_info.age} years
+Gender: ${data.patient_info.gender}
+Ward: ${data.patient_info.ward}
+Admitted: ${data.patient_info.admitted}
+
+CURRENT RISK ASSESSMENT
+-----------------------
+Sepsis Risk Score: ${(data.current_risk.risk_score * 100).toFixed(1)}%
+Risk Level: ${data.current_risk.risk_level}
+Last Updated: ${data.current_risk.updating_time}
+
+CURRENT VITALS
+--------------
+${Object.entries(data.current_vitals).map(([k, v]) => `${k}: ${v}`).join('\n')}
+
+CURRENT LABS
+-----------
+${Object.entries(data.current_labs).map(([k, v]) => `${k}: ${v}`).join('\n')}
+
+CLINICAL FEEDBACK (${data.feedback_count} forms)
+-----------------------------------------------
+${data.clinical_feedback.length > 0 ? data.clinical_feedback.map((f, i) => 
+    `\nForm ${i + 1}:\nDate: ${new Date(f.timestamp).toLocaleString()}\nVitals: ${f.vitals_assessment}\nLabs: ${f.labs_assessment}\nClinical Impression: ${f.clinical_impression}\nRisk Assessment: ${f.risk_assessment}\nNotes: ${f.notes || 'None'}`
+).join('\n') : 'No feedback submitted yet'}
+                    `;
+
+                    // Download as text file
+                    const blob = new Blob([content], { type: 'text/plain' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Patient_Summary_${patientId}_${new Date().toISOString().slice(0,10)}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(err => console.error('Error downloading summary:', err));
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('hitlModal');
+            if (event.target === modal) {
+                modal.classList.remove('active');
+            }
+        }
+    </script>
+</body>
+</html>

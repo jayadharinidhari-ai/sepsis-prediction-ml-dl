@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HITL Feedback History - ML-Sepsis</title>
+    <style>
+        :root {
+            --color-background-primary: #ffffff;
+            --color-background-secondary: #f7f7f7;
+            --color-background-tertiary: #f0f0f0;
+            --color-text-primary: #1a1a1a;
+            --color-text-secondary: #666;
+            --color-text-tertiary: #999;
+            --color-border-primary: #e0e0e0;
+            --color-border-secondary: #d0d0d0;
+            --color-border-tertiary: #e8e8e8;
+            --border-radius-md: 6px;
+            --border-radius-lg: 8px;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-sans); font-size: 14px; color: var(--color-text-primary); background: var(--color-background-tertiary); }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; gap: 20px; flex-wrap: wrap; }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header-right { display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        .btn { padding: 8px 16px; border-radius: var(--border-radius-md); font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--color-border-secondary); background: white; }
+        .btn-primary { background: #378ADD; color: white; border-color: #378ADD; }
+        .btn-primary:hover { background: #2563dd; }
+        .btn-secondary { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+        .btn-secondary:hover { background: var(--color-background-tertiary); }
+        
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .stat-card { background: white; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 16px; }
+        .stat-label { font-size: 12px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .stat-value { font-size: 24px; font-weight: 600; color: #378ADD; }
+        
+        .filters { background: white; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px; margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .filters input, .filters select { padding: 6px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); font-size: 12px; }
+        
+        .feedback-list { display: flex; flex-direction: column; gap: 12px; }
+        .feedback-card { background: white; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 16px; }
+        
+        .feedback-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; }
+        .feedback-title { font-size: 14px; font-weight: 600; }
+        .feedback-date { font-size: 11px; color: var(--color-text-tertiary); }
+        
+        .feedback-row { display: flex; gap: 20px; margin-bottom: 10px; flex-wrap: wrap; }
+        .feedback-item { flex: 1; min-width: 200px; }
+        .feedback-label { font-size: 11px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .feedback-value { font-size: 13px; color: var(--color-text-primary); }
+        
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-correct { background: #EAF3DE; color: #3B6D11; }
+        .badge-partial { background: #FAEEDA; color: #854F0B; }
+        .badge-incorrect { background: #FCEBEB; color: #A32D2D; }
+        .badge-action { background: #E6F1FB; color: #185FA5; }
+        
+        .notes { background: var(--color-background-secondary); border-left: 3px solid #378ADD; padding: 10px 12px; margin-top: 10px; border-radius: 4px; font-size: 12px; line-height: 1.5; color: var(--color-text-primary); }
+        
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--color-text-secondary); }
+        .empty-state-title { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+        .empty-state-text { font-size: 13px; }
+        
+        .nav-tabs { display: flex; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--color-border-tertiary); padding-bottom: 0; }
+        .nav-tab { padding: 12px 16px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; color: var(--color-text-secondary); }
+        .nav-tab.active { color: #378ADD; border-bottom-color: #378ADD; }
+        .nav-tab:hover { color: var(--color-text-primary); }
+        
+        .loading { text-align: center; padding: 40px; color: var(--color-text-secondary); }
+        
+        .retrain-section { background: linear-gradient(135deg, #E6F1FB 0%, #EAF3DE 100%); border: 1px solid #B5D4F4; border-radius: var(--border-radius-lg); padding: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .retrain-info { flex: 1; }
+        .retrain-title { font-size: 15px; font-weight: 600; color: #185FA5; margin-bottom: 6px; }
+        .retrain-status { font-size: 13px; color: var(--color-text-secondary); }
+        .retrain-status-ready { color: #3B6D11; font-weight: 600; }
+        .btn-retrain { background: linear-gradient(135deg, #378ADD 0%, #2563dd 100%); color: white; border: none; padding: 10px 20px; font-weight: 600; cursor: pointer; }
+        .btn-retrain:hover { background: linear-gradient(135deg, #2563dd 0%, #1d4ed8 100%); }
+        .btn-retrain:disabled { background: #d0d0d0; color: #999; cursor: not-allowed; opacity: 0.6; }
+        
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-backdrop.active { display: flex; }
+        .modal-content { background: white; border-radius: var(--border-radius-lg); padding: 24px; max-width: 400px; border: 1px solid var(--color-border-secondary); }
+        .modal-title { font-size: 18px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 12px; }
+        .modal-info { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 20px; line-height: 1.6; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="goToDashboard()">Dashboard</div>
+            <div class="nav-tab">Feedback History</div>
+        </div>
+
+        <div class="header">
+            <div>
+                <h1>Clinician Feedback History</h1>
+                <p style="font-size: 13px; color: var(--color-text-secondary); margin-top: 4px;">Review and manage all submitted HITL feedback</p>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-secondary" onclick="exportFeedbacks()">Export CSV</button>
+                <button class="btn btn-primary" onclick="goToDashboard()">Back to Dashboard</button>
+            </div>
+        </div>
+
+        <div class="stats" id="statsContainer">
+            <div class="stat-card">
+                <div class="stat-label">Total Feedbacks</div>
+                <div class="stat-value" id="totalFeedbacks">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Correct Predictions</div>
+                <div class="stat-value" id="correctCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Partial Predictions</div>
+                <div class="stat-value" id="partialCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Retraining Ready</div>
+                <div class="stat-value" id="readyToRetrain" style="color: #EF9F27;">0/10</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <input type="text" id="searchInput" placeholder="Search by patient name or ID..." onkeyup="filterFeedbacks()">
+            <select id="accuracyFilter" onchange="filterFeedbacks()">
+                <option value="">All Accuracies</option>
+                <option value="correct">Correct</option>
+                <option value="partial">Partially Correct</option>
+                <option value="incorrect">Incorrect</option>
+            </select>
+            <select id="actionFilter" onchange="filterFeedbacks()">
+                <option value="">All Actions</option>
+                <option value="monitor">Continue Monitoring</option>
+                <option value="escalate">Escalate Care</option>
+                <option value="investigate">Further Investigation</option>
+                <option value="discharge">Ready for Discharge</option>
+            </select>
+        </div>
+
+        <div id="retrainSection" class="retrain-section" style="display: none;">
+            <div class="retrain-info">
+                <div class="retrain-title">Model Retraining Available</div>
+                <div class="retrain-status">You have collected <span class="retrain-status-ready" id="feedbackCountText">0</span> clinician feedbacks. Ready to retrain the ML model with your expert insights.</div>
+            </div>
+            <button class="btn btn-primary btn-retrain" onclick="initiateRetrain()">Retrain Model Now</button>
+        </div>
+
+        <div id="feedbackContainer" class="feedback-list">
+            <div class="loading">Loading feedbacks...</div>
+        </div>
+    </div>
+
+    <!-- Retrain Confirmation Modal -->
+    <div id="retrainModal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-title">Confirm Model Retraining</div>
+            <div class="modal-info">
+                <p>This will trigger model retraining using the collected clinician feedback. The retraining process will:</p>
+                <ul style="margin: 10px 0 0 20px; padding-left: 10px;">
+                    <li>Use all 10+ feedback samples</li>
+                    <li>Improve sepsis prediction accuracy</li>
+                    <li>Update the ML model weights</li>
+                </ul>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeRetrainModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmRetrain()">Proceed with Retraining</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allFeedbacks = [];
+
+        async function loadFeedbacks() {
+            try {
+                const response = await fetch('/api/hitl/list');
+                if (!response.ok) throw new Error('Failed to load feedbacks');
+                
+                allFeedbacks = await response.json();
+                updateStats();
+                renderFeedbacks(allFeedbacks);
+            } catch (error) {
+                console.error('Error loading feedbacks:', error);
+                document.getElementById('feedbackContainer').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-title">Error Loading Feedbacks</div>
+                        <div class="empty-state-text">${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function updateStats() {
+            const total = allFeedbacks.length;
+            const correct = allFeedbacks.filter(f => f.accuracy === 'correct').length;
+            const partial = allFeedbacks.filter(f => f.accuracy === 'partial').length;
+            
+            document.getElementById('totalFeedbacks').textContent = total;
+            document.getElementById('correctCount').textContent = correct;
+            document.getElementById('partialCount').textContent = partial;
+            document.getElementById('readyToRetrain').textContent = `${total}/10`;
+            document.getElementById('feedbackCountText').textContent = total;
+            
+            // Show retrain section if 10+ feedbacks
+            const retrainSection = document.getElementById('retrainSection');
+            if (total >= 10) {
+                retrainSection.style.display = 'flex';
+                document.getElementById('readyToRetrain').style.color = '#3B6D11';
+            } else {
+                retrainSection.style.display = 'none';
+            }
+        }
+
+        function renderFeedbacks(feedbacks) {
+            if (feedbacks.length === 0) {
+                document.getElementById('feedbackContainer').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-title">No Feedbacks Yet</div>
+                        <div class="empty-state-text">Submit your first clinician feedback from the dashboard to see it here.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = feedbacks.map(f => `
+                <div class="feedback-card">
+                    <div class="feedback-header">
+                        <div>
+                            <div class="feedback-title">Patient ID: ${f.patient_id}</div>
+                        </div>
+                        <div class="feedback-date">${formatDate(f.timestamp)}</div>
+                    </div>
+                    
+                    <div class="feedback-row">
+                        ${f.accuracy ? `
+                        <div class="feedback-item">
+                            <div class="feedback-label">Prediction Accuracy</div>
+                            <span class="badge ${getAccuracyBadgeClass(f.accuracy)}">${f.accuracy.replace('_', ' ')}</span>
+                        </div>
+                        ` : ''}
+                        ${f.recommended_action ? `
+                        <div class="feedback-item">
+                            <div class="feedback-label">Recommended Action</div>
+                            <span class="badge badge-action">${formatAction(f.recommended_action)}</span>
+                        </div>
+                        ` : ''}
+                        <div class="feedback-item">
+                            <div class="feedback-label">Clinician</div>
+                            <div class="feedback-value">${f.clinician_id}</div>
+                        </div>
+                    </div>
+                    
+                    ${f.clinical_notes ? `
+                        <div class="notes">
+                            <strong>Clinical Notes:</strong><br>
+                            ${f.clinical_notes}
+                        </div>
+                    ` : f.notes ? `
+                        <div class="notes">
+                            <strong>Notes:</strong><br>
+                            ${f.notes}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+
+            document.getElementById('feedbackContainer').innerHTML = html;
+        }
+
+        function filterFeedbacks() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const accuracy = document.getElementById('accuracyFilter').value;
+            const action = document.getElementById('actionFilter').value;
+
+            const filtered = allFeedbacks.filter(f => {
+                const matchesSearch = !search || 
+                    f.patient_id.toString().includes(search);
+                
+                const matchesAccuracy = !accuracy || f.accuracy === accuracy;
+                const matchesAction = !action || f.recommended_action === action;
+                
+                return matchesSearch && matchesAccuracy && matchesAction;
+            });
+
+            renderFeedbacks(filtered);
+        }
+
+        function getAccuracyBadgeClass(accuracy) {
+            if (accuracy === 'correct') return 'badge-correct';
+            if (accuracy === 'partial') return 'badge-partial';
+            return 'badge-incorrect';
+        }
+
+        function formatAction(action) {
+            const map = {
+                'monitor': 'Continue Monitoring',
+                'escalate': 'Escalate Care',
+                'investigate': 'Further Investigation',
+                'discharge': 'Ready for Discharge'
+            };
+            return map[action] || action;
+        }
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function exportFeedbacks() {
+            if (allFeedbacks.length === 0) {
+                alert('No feedbacks to export');
+                return;
+            }
+
+            const csv = [
+                ['Patient ID', 'Clinician ID', 'Accuracy', 'Recommended Action', 'Clinical Notes', 'Timestamp'],
+                ...allFeedbacks.map(f => [
+                    f.patient_id,
+                    f.clinician_id,
+                    f.accuracy || '',
+                    f.recommended_action || '',
+                    `"${(f.clinical_notes || f.notes || '').replace(/"/g, '""')}"`,
+                    f.timestamp
+                ])
+            ];
+
+            const csvContent = csv.map(row => row.join(',')).join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hitl-feedbacks-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function goToDashboard() {
+            window.location.href = '/dashboard';
+        }
+
+        function initiateRetrain() {
+            document.getElementById('retrainModal').classList.add('active');
+        }
+
+        function closeRetrainModal() {
+            document.getElementById('retrainModal').classList.remove('active');
+        }
+
+        async function confirmRetrain() {
+            try {
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = 'Retraining...';
+                
+                const response = await fetch('/api/retrain/trigger', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                
+                closeRetrainModal();
+                
+                if (response.ok) {
+                    alert('✓ Model retraining initiated successfully!\n\nThe system will use your ' + allFeedbacks.length + ' feedback samples to improve prediction accuracy.');
+                    // Reset the display
+                    setTimeout(() => {
+                        loadFeedbacks();
+                    }, 1000);
+                } else {
+                    alert('✗ Retraining failed: ' + (data.error || 'Unknown error'));
+                }
+                
+                btn.disabled = false;
+                btn.textContent = 'Retrain Model Now';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('✗ Error initiating retraining: ' + error.message);
+                closeRetrainModal();
+            }
+        }
+
+        // Load feedbacks on page load
+        window.addEventListener('load', loadFeedbacks);
+    </script>
+</body>
+</html>

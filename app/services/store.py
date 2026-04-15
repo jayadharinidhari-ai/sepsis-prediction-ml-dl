@@ -11,7 +11,10 @@ class PatientStore:
         self.patients = {}
         self.alerts_log = []
         self.sms_sent = set()
+        self.hitl_feedback = []  # HITL feedback from clinicians
+        self.users = {}  # User management
         self._load_demo_patients()
+        self._load_demo_users()
 
     def _load_demo_patients(self):
         """Load demo patients from JSON"""
@@ -214,6 +217,32 @@ class PatientStore:
         for p in demo:
             self.patients[p["id"]] = p
 
+    def _load_demo_users(self):
+        """Load demo users"""
+        self.users = {
+            'DR_SMITH': {
+                'id': 'DR_SMITH',
+                'name': 'Dr. John Smith',
+                'role': 'clinician',
+                'department': 'ICU',
+                'created': datetime.now().isoformat()
+            },
+            'NURSE_JOHN': {
+                'id': 'NURSE_JOHN',
+                'name': 'John Nurse',
+                'role': 'nurse',
+                'ward': 'ICU-A2',
+                'created': datetime.now().isoformat()
+            },
+            'PAT_001': {
+                'id': 'PAT_001',
+                'name': 'Patient Name',
+                'role': 'patient',
+                'dob': '1950-01-01',
+                'created': datetime.now().isoformat()
+            }
+        }
+
     def get_admitted_patients(self):
         """Get all admitted patients"""
         return [p for p in self.patients.values() if p["status"] == "admitted"]
@@ -309,3 +338,87 @@ class PatientStore:
     def get_alerts(self):
         """Get all alerts"""
         return self.alerts_log
+
+    # ============ HITL FEEDBACK MANAGEMENT ============
+    def submit_hitl_feedback(self, clinician_id, patient_id, feedback_data):
+        """Submit HITL feedback for patient training"""
+        feedback = {
+            'id': len(self.hitl_feedback) + 1,
+            'clinician_id': clinician_id,
+            'patient_id': patient_id,
+            'timestamp': feedback_data.get('timestamp', datetime.now().isoformat()),
+            'accuracy': feedback_data.get('accuracy'),  # New format from dashboard
+            'clinical_notes': feedback_data.get('clinical_notes'),  # New format from dashboard
+            'recommended_action': feedback_data.get('recommended_action'),  # New format from dashboard
+            'vitals_assessment': feedback_data.get('vitals_assessment'),  # Legacy format
+            'labs_assessment': feedback_data.get('labs_assessment'),  # Legacy format
+            'clinical_impression': feedback_data.get('clinical_impression'),  # Legacy format
+            'risk_assessment': feedback_data.get('risk_assessment'),  # Legacy format
+            'notes': feedback_data.get('notes', ''),  # Legacy format
+            'status': 'pending'
+        }
+        self.hitl_feedback.append(feedback)
+        return feedback
+
+    def get_hitl_feedback_list(self, clinician_id=None):
+        """Get HITL feedback list"""
+        if clinician_id:
+            return [f for f in self.hitl_feedback if f['clinician_id'] == clinician_id]
+        return self.hitl_feedback
+
+    def get_hitl_feedback_count(self, clinician_id=None):
+        """Get count of HITL feedback"""
+        if clinician_id:
+            return len([f for f in self.hitl_feedback if f['clinician_id'] == clinician_id])
+        return len(self.hitl_feedback)
+
+    def can_retrain(self):
+        """Check if we have 10 or more HITL feedback entries"""
+        return len(self.hitl_feedback) >= 10
+
+    def get_patient_summary(self, patient_id):
+        """Get patient summary for download"""
+        patient = self.get_patient(patient_id)
+        if not patient:
+            return None
+        
+        feedbacks = [f for f in self.hitl_feedback if f['patient_id'] == patient_id]
+        
+        return {
+            'patient_info': {
+                'id': patient['id'],
+                'name': patient['name'],
+                'age': patient['age'],
+                'gender': patient['gender'],
+                'ward': patient['ward'],
+                'admitted': patient['admitted'],
+            },
+            'current_risk': {
+                'risk_score': patient.get('sepsisRisk', 0),
+                'risk_level': patient.get('riskLevel', 'Unknown'),
+                'updating_time': datetime.now().isoformat()
+            },
+            'current_vitals': patient.get('vitals', {}),
+            'current_labs': patient.get('labs', {}),
+            'clinical_feedback': feedbacks,
+            'feedback_count': len(feedbacks)
+        }
+
+    def register_user(self, user_id, user_data):
+        """Register a new user"""
+        self.users[user_id] = {
+            'id': user_id,
+            'name': user_data.get('name'),
+            'role': user_data.get('role'),
+            'created': datetime.now().isoformat(),
+            **{k: v for k, v in user_data.items() if k not in ['name', 'role']}
+        }
+        return self.users[user_id]
+
+    def get_user(self, user_id):
+        """Get user by ID"""
+        return self.users.get(user_id)
+
+    def get_users_by_role(self, role):
+        """Get all users with specific role"""
+        return [u for u in self.users.values() if u.get('role') == role]

@@ -27,6 +27,12 @@ except ImportError:
     SepsisLSTMModel = None
     print("[WARNING] LSTM model not available. Install tensorflow: pip install tensorflow")
 
+# Import human-in-the-loop manager
+try:
+    from app.services.human_loop_manager import get_human_loop_manager
+except ImportError:
+    get_human_loop_manager = None
+
 
 class SepsisEngine:
     """
@@ -265,7 +271,7 @@ class SepsisEngine:
             except Exception as e:
                 print(f"[WARNING] Could not extract feature importance: {e}")
 
-        return {
+        response = {
             "risk_score": round(ensemble_score, 3),
             "risk_level": self._risk_level(ensemble_score),
             "top_features": top_features,
@@ -275,6 +281,27 @@ class SepsisEngine:
             "model_type": model_info,
             "message": f"Sepsis risk: {ensemble_score*100:.1f}% ({model_info})",
         }
+        
+        # ===== ADD TO HUMAN-IN-THE-LOOP REVIEW QUEUE =====
+        try:
+            if get_human_loop_manager:
+                hlm = get_human_loop_manager()
+                prediction_id = hlm.add_prediction(
+                    patient_id=patient_id,
+                    features=features_dict,
+                    lstm_score=lstm_score,
+                    xgb_score=xgb_score,
+                    ensemble_score=ensemble_score,
+                    model_type=model_info,
+                    risk_level=response["risk_level"]
+                )
+                response["prediction_id"] = prediction_id
+                if response["risk_level"] in ["HIGH", "CRITICAL"]:
+                    response["review_required"] = True
+        except Exception as e:
+            print(f"[WARNING] Could not add to human-loop queue: {e}")
+        
+        return response
 
     def _fallback_predict(self, features):
         """Fallback rule-based prediction"""

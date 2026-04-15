@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML-Sepsis - Unified Clinical Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+        
+        .header-right {
+            text-align: right;
+        }
+        
+        .clinician-info {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.95em;
+        }
+        
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0;
+            background: white;
+            border-radius: 12px 12px 0 0;
+            border-bottom: 2px solid #ddd;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 18px;
+            background: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab-button:hover {
+            background: #f9f9f9;
+            color: #667eea;
+        }
+        
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: #f9f9f9;
+        }
+        
+        .tab-content {
+            background: white;
+            border-radius: 0 0 12px 12px;
+            padding: 30px;
+            display: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-card .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        
+        .patient-list {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .patient-card {
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 20px;
+            background: white;
+        }
+        
+        .patient-card.critical {
+            border-left: 5px solid #e74c3c;
+            background: #fff5f5;
+        }
+        
+        .patient-card.high {
+            border-left: 5px solid #f39c12;
+            background: #fffbf5;
+        }
+        
+        .patient-card.moderate {
+            border-left: 5px solid #3498db;
+            background: #f5fbff;
+        }
+        
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .patient-id {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .risk-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        .risk-badge.critical {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .risk-badge.high {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .risk-badge.moderate {
+            background: #3498db;
+            color: white;
+        }
+        
+        .risk-badge.low {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .vital {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .vital-label {
+            font-size: 0.85em;
+            color: #999;
+            margin-bottom: 5px;
+        }
+        
+        .vital-value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .scores {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+        
+        .score-item {
+            text-align: center;
+        }
+        
+        .score-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .score-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-approve {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-approve:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+        
+        .btn-reject {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-reject:hover {
+            background: #cb4335;
+            transform: translateY(-2px);
+        }
+        
+        .btn-dismiss {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-dismiss:hover {
+            background: #7f8c8d;
+            transform: translateY(-2px);
+        }
+        
+        .btn-retrain {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-retrain:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .retrain-section {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 25px;
+        }
+        
+        .retrain-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .retrain-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .retrain-requirement {
+            display: flex;
+            align-items: center;
+            margin: 12px 0;
+            font-size: 0.95em;
+        }
+        
+        .requirement-status {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            margin-right: 12px;
+            font-weight: bold;
+            font-size: 0.8em;
+            color: white;
+        }
+        
+        .requirement-status.met {
+            background: #27ae60;
+        }
+        
+        .requirement-status.pending {
+            background: #f39c12;
+        }
+        
+        .retrain-checklist {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .checklist-item {
+            margin: 12px 0;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .checklist-item input {
+            margin-right: 12px;
+            cursor: pointer;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .empty-state .icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .success-message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🏥 ML-Sepsis Clinical Dashboard</h1>
+                <p>Integrated Patient Monitoring & AI Validation System</p>
+            </div>
+            <div class="header-right">
+                <div class="clinician-info">
+                    <div id="clinicianDisplay">Loading...</div>
+                </div>
+                <button class="logout-btn" onclick="handleLogout()">🔓 Logout</button>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab-button active" data-tab="monitoring">
+                📊 Patient Monitoring
+            </button>
+            <button class="tab-button" data-tab="review">
+                📋 Review Queue
+            </button>
+            <button class="tab-button" data-tab="retrain">
+                🤖 Model Retraining
+            </button>
+        </div>
+        
+        <!-- TAB 1: PATIENT MONITORING -->
+        <div id="monitoring" class="tab-content active">
+            <h2 style="margin-bottom: 20px; color: #333;">📊 Real-Time Patient Monitoring</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">Total Patients</div>
+                    <div class="value" id="totalPatients">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Critical Cases</div>
+                    <div class="value" id="criticalCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">High Risk</div>
+                    <div class="value" id="highCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Avg AI Score</div>
+                    <div class="value" id="avgScore">0%</div>
+                </div>
+            </div>
+            
+            <div id="patientList" class="patient-list">
+                <div class="empty-state">
+                    <div class="icon">⏳</div>
+                    <p>Loading patient data...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB 2: REVIEW QUEUE -->
+        <div id="review" class="tab-content">
+            <h2 style="margin-bottom: 20px; color: #333;">📋 Clinician Review Queue</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">Pending Reviews</div>
+                    <div class="value" id="pendingCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Total Reviewed</div>
+                    <div class="value" id="reviewedCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Model Accuracy</div>
+                    <div class="value" id="accuracy">--</div>
+                </div>
+            </div>
+            
+            <div id="successMessage" class="success-message"></div>
+            
+            <div id="reviewQueue" class="patient-list">
+                <div class="empty-state">
+                    <div class="icon">✅</div>
+                    <p>All caught up! No pending reviews.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB 3: MODEL RETRAINING -->
+        <div id="retrain" class="tab-content">
+            <h2 style="margin-bottom: 20px; color: #333;">🤖 Model Retraining System</h2>
+            
+            <div class="retrain-section">
+                <h3>ℹ️ Retraining Requirements</h3>
+                
+                <div class="retrain-info">
+                    <h4 style="margin-bottom: 15px; color: #333;">What is Model Retraining?</h4>
+                    <p style="color: #666; line-height: 1.6;">
+                        Model retraining uses your feedback (approve/reject predictions) to improve the AI model's accuracy. As clinicians validate predictions, the system learns from these validations and improves.
+                    </p>
+                </div>
+                
+                <div class="retrain-info">
+                    <h4 style="margin-bottom: 15px; color: #333;">✅ System Requirements</h4>
+                    <div id="retainRequirements">
+                        <div class="retrain-requirement">
+                            <span class="requirement-status pending">1</span>
+                            <span>Minimum <strong>10 reviewed predictions</strong> (Clinical validations)</span>
+                        </div>
+                        <div class="retrain-requirement">
+                            <span class="requirement-status pending">2</span>
+                            <span>Feedback from <strong>2+ different clinicians</strong> (Multiple perspectives)</span>
+                        </div>
+                        <div class="retrain-requirement">
+                            <span class="requirement-status pending">3</span>
+                            <span><strong>Physician-level access</strong> required (Senior approval)</span>
+                        </div>
+                        <div class="retrain-requirement">
+                            <span class="requirement-status pending">4</span>
+                            <span><strong>Database integrity verified</strong> (Automatic check)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="retrain-checklist">
+                    <h4 style="margin-bottom: 15px; color: #333;">📋 Pre-Retraining Checklist</h4>
+                    <div class="checklist-item">
+                        <input type="checkbox" disabled>
+                        <label>Ensure you have reviewed at least 10 predictions</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" disabled>
+                        <label>Multiple clinicians have provided feedback</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" disabled>
+                        <label>Review feedback for patterns and errors</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" disabled>
+                        <label>Backup current model (automatic before retraining)</label>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" disabled>
+                        <label>Notify team of retraining schedule</label>
+                    </div>
+                </div>
+                
+                <div class="retrain-info">
+                    <h4 style="margin-bottom: 15px; color: #333;">🚀 How to Retrain</h4>
+                    <p style="color: #666; margin-bottom: 15px;">
+                        Once requirements are met, run the retraining command:
+                    </p>
+                    <code style="background: #f0f4ff; padding: 15px; border-radius: 6px; display: block; font-family: monospace; color: #667eea;">
+                        python retrain_from_feedback.py --min-reviews 10 --epochs 20
+                    </code>
+                    <p style="color: #666; margin-top: 15px; font-size: 0.9em;">
+                        ⏱️ Estimated time: 2-5 minutes (depending on feedback volume)
+                    </p>
+                </div>
+                
+                <div class="retrain-info">
+                    <h4 style="margin-bottom: 15px; color: #333;">📊 System Status</h4>
+                    <div id="retrainStats" style="color: #666;">
+                        <p>⏳ Loading system metrics...</p>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="btn-retrain" id="retrainBtn" onclick="triggerRetraining()" disabled>
+                        🤖 Start Model Retraining
+                    </button>
+                    <p id="retrainStatus" style="color: #666; margin-top: 15px; font-size: 0.9em;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check authentication
+            const user = localStorage.getItem('user');
+            if (!user) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            const userData = JSON.parse(user);
+            document.getElementById('clinicianDisplay').innerHTML = `
+                <strong>${userData.name}</strong> (${userData.id})<br>
+                <small>${userData.role}</small>
+            `;
+            
+            // Setup tabs
+            setupTabs();
+            
+            // Load data
+            loadMonitoring();
+            loadReviewQueue();
+            loadRetrainStats();
+        });
+        
+        function setupTabs() {
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabName = button.getAttribute('data-tab');
+                    
+                    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    button.classList.add('active');
+                    document.getElementById(tabName).classList.add('active');
+                });
+            });
+        }
+        
+        async function loadMonitoring() {
+            try {
+                const response = await fetch('/api/patients');
+                const patients = await response.json();
+                
+                document.getElementById('totalPatients').textContent = patients.length;
+                
+                let critical = 0, high = 0, totalScore = 0;
+                const html = patients.map(p => {
+                    // Map API field names to UI expectations
+                    const riskLevel = p.riskLevel || p.risk_level || 'MODERATE';
+                    const risk = riskLevel.toLowerCase();
+                    const score = p.sepsisRisk || p.ensemble_score || 0;
+                    const labs = p.labs || {};
+                    
+                    // Count risk levels
+                    if (risk === 'critical' || riskLevel.toUpperCase() === 'CRITICAL') critical++;
+                    if (risk === 'high' || riskLevel.toUpperCase() === 'HIGH') high++;
+                    totalScore += score;
+                    
+                    const user = JSON.parse(localStorage.getItem('user'));
+                    const hitlButton = user.role === 'clinician' ? 
+                        `<button class="btn-approve" onclick="openHitlForm('${p.id}', '${p.name || 'Patient ' + p.id}')">📝 Add HITL Feedback</button>` : '';
+                    
+                    return `
+                        <div class="patient-card ${risk}">
+                            <div class="patient-header">
+                                <div class="patient-id">${p.name || 'Patient ' + p.id}</div>
+                                <span class="risk-badge ${risk}">${riskLevel.toUpperCase()}</span>
+                            </div>
+                            <div class="vitals-grid">
+                                <div class="vital">
+                                    <div class="vital-label">HR</div>
+                                    <div class="vital-value">${p.HR || '--'}</div>
+                                </div>
+                                <div class="vital">
+                                    <div class="vital-label">Temp</div>
+                                    <div class="vital-value">${p.Temp || '--'}</div>
+                                </div>
+                                <div class="vital">
+                                    <div class="vital-label">SBP</div>
+                                    <div class="vital-value">${p.SBP || labs.SBP || '--'}</div>
+                                </div>
+                                <div class="vital">
+                                    <div class="vital-label">O2Sat</div>
+                                    <div class="vital-value">${p.O2Sat || labs.FiO2 || '--'}%</div>
+                                </div>
+                            </div>
+                            <div class="scores">
+                                <div class="score-item">
+                                    <div class="score-label">AI Score</div>
+                                    <div class="score-value">${(score * 100).toFixed(1)}%</div>
+                                </div>
+                                <div class="score-item">
+                                    <div class="score-label">Risk Level</div>
+                                    <div class="score-value">${riskLevel.toUpperCase()}</div>
+                                </div>
+                            </div>
+                            ${hitlButton ? `<div class="action-buttons">${hitlButton}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('patientList').innerHTML = html || '<div class="empty-state"><p>No patients admitted</p></div>';
+                document.getElementById('criticalCount').textContent = critical;
+                document.getElementById('highCount').textContent = high;
+                document.getElementById('avgScore').textContent = patients.length > 0 ? `${(totalScore / patients.length * 100).toFixed(1)}%` : '0%';
+            } catch (error) {
+                console.error('Error loading monitoring:', error);
+                document.getElementById('patientList').innerHTML = '<div class="empty-state"><p>Error loading patients. Check console.</p></div>';
+            }
+        }
+        
+        async function loadReviewQueue() {
+            try {
+                const response = await fetch('/api/human-loop/statistics');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.statistics;
+                    document.getElementById('pendingCount').textContent = stats.total_predictions - stats.total_reviewed;
+                    document.getElementById('reviewedCount').textContent = stats.total_reviewed;
+                    document.getElementById('accuracy').textContent = `${stats.accuracy.toFixed(1)}%`;
+                }
+                
+                const queueResponse = await fetch('/api/human-loop/review-queue?limit=20');
+                const queueData = await queueResponse.json();
+                
+                if (queueData.success && queueData.queue.length > 0) {
+                    const html = queueData.queue.map(pred => `
+                        <div class="patient-card ${pred.risk_level.toLowerCase()}">
+                            <div class="patient-header">
+                                <div class="patient-id">${pred.patient_id}</div>
+                                <span class="risk-badge ${pred.risk_level.toLowerCase()}">${pred.risk_level}</span>
+                            </div>
+                            <div class="scores">
+                                <div class="score-item">
+                                    <div class="score-label">LSTM</div>
+                                    <div class="score-value">${(pred.lstm_score * 100).toFixed(1)}%</div>
+                                </div>
+                                <div class="score-item">
+                                    <div class="score-label">Ensemble</div>
+                                    <div class="score-value">${(pred.ensemble_score * 100).toFixed(1)}%</div>
+                                </div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="btn-approve" onclick="approvePrediction(${pred.prediction_id}, true)">✓ Correct</button>
+                                <button class="btn-reject" onclick="approvePrediction(${pred.prediction_id}, false)">✗ Incorrect</button>
+                                <button class="btn-dismiss" onclick="dismissReview(${pred.prediction_id})">- Dismiss</button>
+                            </div>
+                        </div>
+                    `).join('');
+                    document.getElementById('reviewQueue').innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Error loading review queue:', error);
+            }
+        }
+        
+        async function loadRetrainStats() {
+            try {
+                const response = await fetch('/api/human-loop/statistics');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.statistics;
+                    const user = JSON.parse(localStorage.getItem('user'));
+                    const canRetrain = user.role === 'clinician' && stats.total_reviewed >= 10;
+                    
+                    document.getElementById('retrainStats').innerHTML = `
+                        <p><strong>Reviewed Predictions:</strong> ${stats.total_reviewed}</p>
+                        <p><strong>Model Accuracy:</strong> ${stats.accuracy.toFixed(1)}%</p>
+                        <p><strong>Your Role:</strong> ${user.role}</p>
+                    `;
+                    
+                    document.getElementById('retrainBtn').disabled = !canRetrain;
+                    if (canRetrain) {
+                        document.getElementById('retrainStatus').textContent = '✅ All requirements met! Ready to retrain.';
+                    } else {
+                        const needed = Math.max(0, 10 - stats.total_reviewed);
+                        document.getElementById('retrainStatus').textContent = `⏳ Need ${needed} more reviews or clinician privileges.`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading retrain stats:', error);
+            }
+        }
+        
+        async function approvePrediction(predId, isCorrect) {
+            const user = JSON.parse(localStorage.getItem('user'));
+            try {
+                const response = await fetch('/api/human-loop/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prediction_id: predId,
+                        clinician_id: user.id,
+                        is_correct: isCorrect,
+                        notes: `Review by ${user.name}`
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showSuccessMessage(`✅ Feedback recorded! Model accuracy: ${data.statistics.accuracy.toFixed(1)}%`);
+                    loadReviewQueue();
+                    loadRetrainStats();
+                }
+            } catch (error) {
+                alert('Error: ' + error);
+            }
+        }
+        
+        async function dismissReview(predId) {
+            const clinician = JSON.parse(localStorage.getItem('clinician'));
+            try {
+                const response = await fetch('/api/human-loop/dismiss', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prediction_id: predId,
+                        clinician_id: user.id
+                    })
+                });
+                
+                if (response.ok) {
+                    showSuccessMessage('Review dismissed');
+                    loadReviewQueue();
+                }
+            } catch (error) {
+                alert('Error: ' + error);
+            }
+        }
+        
+        function triggerRetraining() {
+            alert('🚀 Retraining initiated!\n\nRun in terminal:\npython retrain_from_feedback.py');
+        }
+        
+        function showSuccessMessage(msg) {
+            const div = document.getElementById('successMessage');
+            div.textContent = msg;
+            div.classList.add('show');
+            setTimeout(() => div.classList.remove('show'), 5000);
+        }
+        
+        function handleLogout() {
+            localStorage.removeItem('user');
+            sessionStorage.clear();
+            window.location.href = '/login';
+        }
+        
+        // HITL Features for Clinicians
+        function openHitlForm(patientId, patientName) {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user.role !== 'clinician') {
+                alert('Only clinicians can submit HITL feedback');
+                return;
+            }
+            
+            const modal = document.getElementById('hitlModal');
+            if (!modal) return;
+            
+            document.getElementById('hitlPatientId').value = patientId;
+            document.getElementById('hitlPatientName').textContent = patientName;
+            modal.classList.add('show');
+        }
+        
+        function closeHitlModal() {
+            const modal = document.getElementById('hitlModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
+        async function submitHitlForm(event) {
+            event.preventDefault();
+            const user = JSON.parse(localStorage.getItem('user'));
+            
+            const patientId = document.getElementById('hitlPatientId').value;
+            const vitals = document.getElementById('hitlVitals').value;
+            const labs = document.getElementById('hitlLabs').value;
+            const impression = document.getElementById('hitlImpression').value;
+            const risk = document.getElementById('hitlRisk').value;
+            const notes = document.getElementById('hitlNotes').value;
+            
+            try {
+                const response = await fetch('/api/hitl/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        clinician_id: user.id,
+                        patient_id: patientId,
+                        vitals_assessment: vitals,
+                        labs_assessment: labs,
+                        clinical_impression: impression,
+                        risk_assessment: risk,
+                        notes: notes
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showSuccessMessage('✅ HITL Feedback submitted successfully!');
+                    document.getElementById('hitlForm').reset();
+                    closeHitlModal();
+                    loadMonitoring(); // Refresh patient list
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to submit feedback'));
+                }
+            } catch (error) {
+                alert('Error: ' + error);
+            }
+        }
+    </script>
+    
+    <!-- HITL Feedback Modal (for clinicians only) -->
+    <div id="hitlModal" class="hitl-modal">
+        <div class="hitl-modal-content">
+            <div class="hitl-modal-header">
+                <h2>📝 HITL Feedback Form</h2>
+                <button class="hitl-close-btn" onclick="closeHitlModal()">✕</button>
+            </div>
+            <form id="hitlForm" onsubmit="submitHitlForm(event)" class="hitl-form">
+                <input type="hidden" id="hitlPatientId">
+                <div class="form-group">
+                    <label>Patient: <span id="hitlPatientName"></span></label>
+                </div>
+                <div class="form-group">
+                    <label for="hitlVitals">Vitals Assessment</label>
+                    <textarea id="hitlVitals" placeholder="e.g., HR elevated, BP normal..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="hitlLabs">Labs Assessment</label>
+                    <textarea id="hitlLabs" placeholder="e.g., WBC high, lactate elevated..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="hitlImpression">Clinical Impression</label>
+                    <textarea id="hitlImpression" placeholder="e.g., Suspected sepsis, recommend..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="hitlRisk">Risk Assessment</label>
+                    <select id="hitlRisk" required>
+                        <option value="">Select risk level...</option>
+                        <option value="low">🟢 Low Risk</option>
+                        <option value="moderate">🟡 Moderate Risk</option>
+                        <option value="high">🟠 High Risk</option>
+                        <option value="critical">🔴 Critical</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="hitlNotes">Additional Notes</label>
+                    <textarea id="hitlNotes" placeholder="Any additional observations..."></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn-approve">✓ Submit HITL Feedback</button>
+                    <button type="button" class="btn-dismiss" onclick="closeHitlModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <style>
+        .hitl-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .hitl-modal.show {
+            display: flex;
+        }
+        
+        .hitl-modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .hitl-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .hitl-modal-header h2 {
+            color: #333;
+            margin: 0;
+        }
+        
+        .hitl-close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .hitl-form .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .hitl-form label {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+        
+        .hitl-form textarea,
+        .hitl-form select,
+        .hitl-form input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.95em;
+        }
+        
+        .hitl-form textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .hitl-form textarea:focus,
+        .hitl-form select:focus,
+        .hitl-form input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+    </style>

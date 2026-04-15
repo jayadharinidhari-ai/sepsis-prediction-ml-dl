@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Certificate - ML-Sepsis</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Georgia', serif;
+            background: #f0f0f0;
+            color: #333;
+            padding: 20px;
+        }
+
+        .certificate-wrapper {
+            max-width: 850px;
+            margin: 0 auto;
+        }
+
+        .certificate {
+            background: white;
+            border: 3px solid #378ADD;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            position: relative;
+        }
+
+        .certificate::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 20px solid #378ADD;
+        }
+
+        .print-btn {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .btn {
+            background: #378ADD;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #2563dd;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .cert-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #378ADD;
+        }
+
+        .hospital-crest {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .hospital-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #378ADD;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .cert-type {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 15px;
+            letter-spacing: 2px;
+        }
+
+        .cert-subtype {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .cert-content {
+            margin: 30px 0;
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.8;
+            color: #333;
+        }
+
+        .cert-content p {
+            margin: 12px 0;
+        }
+
+        .patient-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #378ADD;
+            margin: 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-table {
+            width: 100%;
+            margin: 30px 0;
+        }
+
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            text-align: left;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 15px;
+            color: #333;
+            font-weight: 500;
+            border-bottom: 1px solid #378ADD;
+            padding-bottom: 6px;
+        }
+
+        .status-section {
+            background: #f9f9f9;
+            border-left: 4px solid #378ADD;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .status-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .status-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #3B6D11;
+        }
+
+        .status-value.warning {
+            color: #854F0B;
+        }
+
+        .status-value.high {
+            color: #A32D2D;
+        }
+
+        .declaration {
+            text-align: center;
+            margin: 40px 0;
+            font-size: 13px;
+            line-height: 1.8;
+            color: #333;
+            font-style: italic;
+        }
+
+        .signatures {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 50px;
+        }
+
+        .signature-block {
+            text-align: center;
+        }
+
+        .signature-line {
+            border-top: 1px solid #333;
+            margin-bottom: 6px;
+            height: 50px;
+        }
+
+        .signature-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .signature-title {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .certificate-footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 11px;
+            color: #999;
+        }
+
+        .cert-number {
+            font-size: 10px;
+            color: #bbb;
+            margin-top: 15px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .print-btn {
+                display: none;
+            }
+            .certificate-wrapper {
+                max-width: 100%;
+            }
+            .certificate {
+                box-shadow: none;
+                border-radius: 0;
+            }
+        }
+
+        .seal-area {
+            text-align: center;
+            margin: 30px 0;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d0d0d0;
+            font-size: 48px;
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate-wrapper">
+        <div class="print-btn">
+            <button class="btn" onclick="window.print()">Print Certificate</button>
+            <button class="btn btn-secondary" onclick="downloadCertificate()">Download PDF</button>
+            <button class="btn btn-secondary" onclick="goBack()">Back to Dashboard</button>
+        </div>
+
+        <div class="certificate">
+            <div class="cert-header">
+                <div class="hospital-crest">🏥</div>
+                <div class="hospital-name">Sepsis ICU Monitoring System</div>
+                <div class="cert-type">Medical Certificate</div>
+                <div class="cert-subtype">Clinical Assessment & Discharge Status</div>
+            </div>
+
+            <div class="cert-content">
+                <p>This is to certify that</p>
+                
+                <div class="patient-name" id="certPatientName">PATIENT NAME</div>
+
+                <p style="margin: 20px 0;">has been under medical supervision and monitoring in our intensive care facility for the assessment and management of sepsis risk.</p>
+            </div>
+
+            <div class="info-table">
+                <div class="info-row">
+                    <div class="info-item">
+                        <div class="info-label">Patient Identification</div>
+                        <div class="info-value" id="certPatientId">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Age / Gender</div>
+                        <div class="info-value" id="certAgeGender">-</div>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-item">
+                        <div class="info-label">Ward / Department</div>
+                        <div class="info-value" id="certWard">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Admission Date</div>
+                        <div class="info-value" id="certAdmittedDate">-</div>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-item">
+                        <div class="info-label">Discharge Date</div>
+                        <div class="info-value" id="certDischargeDate">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Attending Physician</div>
+                        <div class="info-value" id="certDoctor">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-label">Final Sepsis Risk Assessment</div>
+                <div class="status-value" id="certFinalRisk">-</div>
+                <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                    Status: <span id="certRiskStatus">-</span>
+                </div>
+            </div>
+
+            <div class="declaration">
+                <p>Based on comprehensive clinical assessment, laboratory investigations, and continuous monitoring using advanced ICU monitoring systems, the patient's sepsis risk status has been evaluated and documented.</p>
+                
+                <p style="margin-top: 15px;">The patient is deemed suitable for discharge or continued outpatient monitoring as per clinical judgment and guidelines.</p>
+            </div>
+
+            <div class="seal-area">⭐</div>
+
+            <div class="signatures">
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-name">Medical Supervisor</div>
+                    <div class="signature-title">Sepsis ICU Department</div>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-name">Hospital Director</div>
+                    <div class="signature-title">Clinical Services</div>
+                </div>
+            </div>
+
+            <div class="certificate-footer">
+                <p>This certificate is generated from the Sepsis ICU Monitoring System and serves as a clinical record of assessment conducted.</p>
+                <div class="cert-number" id="certNumber">Certificate #: -</div>
+                <p style="margin-top: 8px;">Date Generated: <span id="certGenDate">-</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const patientId = {{ patient_id }};
+
+        async function loadCertificate() {
+            try {
+                const response = await fetch(`/api/patient/${patientId}/certificate`);
+                if (!response.ok) throw new Error('Failed to load certificate');
+                
+                const data = await response.json();
+                if (!data.success) throw new Error('Certificate data unavailable');
+                
+                const cert = data.certificate;
+                populateCertificate(cert);
+            } catch (error) {
+                console.error('Error:', error);
+                document.querySelector('.certificate').innerHTML = `
+                    <div style="padding: 40px; text-align: center; color: #999;">
+                        <h2>Error Loading Certificate</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function populateCertificate(cert) {
+            document.getElementById('certPatientName').textContent = cert.patient_name.toUpperCase();
+            document.getElementById('certPatientId').textContent = `ID: ${cert.patient_id}`;
+            document.getElementById('certAgeGender').textContent = `${cert.age} years, ${cert.gender === 'M' ? 'Male' : 'Female'}`;
+            document.getElementById('certWard').textContent = cert.ward;
+            document.getElementById('certAdmittedDate').textContent = cert.admitted_date;
+            document.getElementById('certDischargeDate').textContent = cert.discharge_date;
+            document.getElementById('certDoctor').textContent = cert.doctors_name;
+            
+            const riskScore = (parseFloat(cert.final_sepsis_risk) * 100).toFixed(1);
+            document.getElementById('certFinalRisk').textContent = riskScore + '%';
+            document.getElementById('certRiskStatus').textContent = cert.final_risk_status;
+            
+            if (riskScore >= 75) {
+                document.getElementById('certFinalRisk').className = 'status-value high';
+            } else if (riskScore >= 40) {
+                document.getElementById('certFinalRisk').className = 'status-value warning';
+            }
+            
+            document.getElementById('certNumber').textContent = `Certificate #: ${cert.certificate_number}`;
+            document.getElementById('certGenDate').textContent = new Date(cert.generated_at).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        function downloadCertificate() {
+            alert('Download feature coming soon. Use "Print Certificate" to save as PDF using your browser\'s print dialog.');
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+
+        window.addEventListener('load', loadCertificate);
+    </script>
+</body>
+</html>
