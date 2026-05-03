@@ -34,6 +34,10 @@ XGBoost was selected due to:
 - Built-in feature importance (supports explainability)
 - Robustness to overfitting
 
+  **LSTM (Long Short-Term Memory Network)**  
+  Used to capture temporal patterns in patient vitals and lab values over time.
+
+
 ##  ML Pipeline
 
 1. Data Collection (PhysioNet ICU dataset)
